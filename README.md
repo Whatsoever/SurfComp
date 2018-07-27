@@ -12,7 +12,9 @@ Aqueous chemistry and Surface complexation (Interactions of walls and chemistry)
 
 ### Coding style
 Sometimes it is difficult to stick to a coding style but we try to follow:
+
 [PEP 8 -- Style Guide for Python Code](https://www.python.org/dev/peps/pep-0008/)
+
 [PEP 257 -- Docstring Conventions](https://www.python.org/dev/peps/pep-0257/)
 
 ## Authors
