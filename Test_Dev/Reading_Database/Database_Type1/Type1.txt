@@ -1,0 +1,60 @@
+# The first file is supossed to be the most simple. Things like, temperature coefficients of a polynomial in order to know the
+# equilibrium constant and other parameters might be not include. 
+
+Primary_Species
+
+# Name		# Charge		# MolarWeight		
+'H2O'		0			18.0153			
+'H+'		1			1.0079
+'Ca+2'		2			40.08
+'CO3-2'		-2			12.0111
+'Mg+2'		2			24.312
+'Cl-'		-1			35.453
+
+# Notes: 
+#       1) I am adding water because I am not sure if it is significant for pH speciation or future calculations where Surface plays a role
+#		(In general activity of water must be 1, but I am not sure If we will work with not diluted solutions)
+#       2) The way to calculate the activity of the species will be introduced in the input file, but there is an exception that is water 
+#	    it is calculated by Raoult’s law (Garrels and Christ,1965, p. 65-66). Therefore, the name H2O will be specific for water
+#	3) The charge can be obtain by reading the string '# Name' character by character and if a + or - appears count it as charge (+ or -) 
+#          and the number behind as the value of charge (+2, +3, etc). It can be later implentated.
+# 
+
+Secondary_Species
+# Name	#Charge 	#Reaction ('Primary Species' 'Stoichiometric' ....)
+'OH-'   -1 		'H2O'	-1	'H+'	1
+-log_k		14
+
+# Notes:
+#  1) First the secondary species names, and later the charge (which might be removed by a function which translates the strings into values),
+#     then the primary species that form the reaction with its stoichiometric coefficient. (Where products are positives and reactants are negative, the stoichiometric value of th
+#	secondary species is always 1 <-- This can be modified, I guess I just do it for simplicity) 
+#  2) The line -log_k states the log value of the defined reaction. (Like Phreeqc I suposse that log_K is at 25°C)
+#  3) More lines can be written, behind to add parameters. (e.g. Parameter for temperature and the log_K) <-- must be discussed.
+
+'HCO3-'	-1	'CO3-2' -1 'H+' -1
+-log_k	10.329
+
+'MgCO3' 0	'CO3-2'	-1 'Mg+2' -1
+-log_k  2.98
+
+'CaCO3' 0	'Ca+2' -1 'CO3-2' -1
+-log_k 3.224
+
+'MgHCO3+' 1	'Mg+2' -1 'H+' -1     'CO3-2'	-1
+-log_k 11.399
+
+'CaHCO3+' 1	'Ca+2' -1 'CO3-2' -1 'H+' -1
+-log_k	11.435
+
+'CO2'	0	'CO3-2' -1 'H+' -2 'H2O' 1
+-log_k	16.681
+
+'CaOH+' 1	'Ca+2' -1 'H2O' -1 'H+' 1
+-log_k	-12.78
+
+'CaHCO3+' 1     'Ca+2' -1 'CO3-2' -1 'H+' -1
+-log_k	11.435 
+
+'MgOH+' 1	'Mg+2' -1 'H2O' -1 'H+' -1
+-log_k	-11.44
