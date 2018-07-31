@@ -4,6 +4,8 @@ Created on Mon Jul 30 16:55:33 2018
 
 @author: Lützenkirchen, Heberling, Jara
 """
+import numpy as np
+import sympa as sp
 
 class Database:
     # Constructor
@@ -32,7 +34,7 @@ class Database:
         '''Sets the input parameter names_secondary_species (e.g n = ['Cl-', 'H2O', 'H+']) in the property name_secondary_species'''
         self.name_secondary_species = names_secondary_species
         
-    def ser_reaction_list(self, list_reactions):
+    def set_reaction_list(self, list_reactions):
         '''
         list_reactions is a list containing reaction classes. 
             Currently, e.g.:
@@ -45,10 +47,43 @@ class Database:
         self.list_reactions = list_reactions
         self.n_reactions = len(list_reactions)
     
+    def create_log_k_vector (self):
+        '''Creates a list of the log_k vectors'''
+        self.log_k_vector = []
+        for i in range(0, len(self.list_reactions)):
+            self.log_k_vector.append(self.list_reactions[i].log_k)
+    
+    def create_charge_vector (self):
+        '''Creates a list of the charge values'''
+        self.charge_vector = []
+        for i in range(0, len(self.list_species)):
+            self.charge_vector.append(self.list_species[i].charge)
+    
+    def create_gfw_vector (self):
+        '''Creates a list of the charge values'''
+        self.gfw_vector = []
+        for i in range(0, len(self.list_species)):
+            self.gfw_vector.append(self.list_species[i].gfw)
+    
     # Matrix_Creation_From_Database
     def create_S (self):
         self.check_consistency_species()
-    
+        # Columns and rows definition of the S matrix
+        self.S_columns = self.name_primary_species + self.name_secondary_species
+        self.S_rows = range(0, self.n_reactions)
+        
+        # Instantiating S matrix
+        self.S = np.zeros((len(self.S_rows, self.S_columns)))
+        
+        # The stoichiometric matrix must be fulled with the values of the Reaction classes stored in the list_reactions
+        for i in range(0, self.n_reactions):
+            d = [*self.list_reactions[i].reaction]
+            for j in d:
+                self.S[i,self.S_columns.index(j)] = self.list_reactions[i].reaction[j]
+        
+        # Check that the S matrix is linear independent and if not output an erorr and point where is the problem
+        self.check_S_linear_independent()
+        
     # Check that the database is consistent
     def check_consistency_species(self):
         # Check that n_species == len(list_species) == len(names_primary_species) + len(names_secondary_species)
@@ -61,3 +96,14 @@ class Database:
         for i in range(0, self.n_species):
             assert self.list_species[i].name in self.name_primary_species or self.list_species[i].name in self.name_secondary_species, \
             "Species %r is not in the primary or secondary list" %self.list_species[i].name
+            
+    # Check that the S matrix is linear independent and if not output an erorr and point where is the problem
+    def check_S_linear_independent(self):
+        determinant_S = np.linalg.det(self.S)    # If it does not work maybe code numpy.linalg.slogdet(a)[https://docs.scipy.org/doc/numpy/reference/generated/numpy.linalg.slogdet.html]
+        if determinant_S == 0:
+            M = sp.Matrix(self.S)
+            reduced_form, inds = M.rref()
+            r = set(inds).symmetric_difference(range(0, self.n_reactions))
+            self.S = None
+            raise ValueError('The following equations on the database are linear dependent (Please remove them):' + repr(r))
+    

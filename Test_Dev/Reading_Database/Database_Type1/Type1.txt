@@ -1,4 +1,4 @@
-# The first file is supossed to be the most simple. Things like, temperature coefficients of a polynomial in order to know the
+                                                       # The first file is supossed to be the most simple. Things like, temperature coefficients of a polynomial in order to know the
 # equilibrium constant and other parameters might be not include. 
 
 Primary_Species
