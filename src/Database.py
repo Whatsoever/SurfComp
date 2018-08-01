@@ -5,7 +5,7 @@ Created on Mon Jul 30 16:55:33 2018
 @author: Lützenkirchen, Heberling, Jara
 """
 import numpy as np
-import sympa as sp
+import sympy as sp
 
 class Database:
     # Constructor
@@ -70,25 +70,26 @@ class Database:
         self.check_consistency_species()
         # Columns and rows definition of the S matrix
         self.S_columns = self.name_primary_species + self.name_secondary_species
-        self.S_rows = range(0, self.n_reactions)
+        self.S_rows = range( self.n_reactions)
         
         # Instantiating S matrix
-        self.S = np.zeros((len(self.S_rows, self.S_columns)))
+        self.S = np.zeros((len(self.S_rows), len(self.S_columns)))
         
         # The stoichiometric matrix must be fulled with the values of the Reaction classes stored in the list_reactions
         for i in range(0, self.n_reactions):
             d = [*self.list_reactions[i].reaction]
             for j in d:
                 self.S[i,self.S_columns.index(j)] = self.list_reactions[i].reaction[j]
-        
+        qew,rew = np.linalg.qr(self.S)
         # Check that the S matrix is linear independent and if not output an erorr and point where is the problem
-        self.check_S_linear_independent()
+        self.check_Srows_linear_independent()
+        self.Remove_Columns_S_zero()
         
     # Check that the database is consistent
     def check_consistency_species(self):
         # Check that n_species == len(list_species) == len(names_primary_species) + len(names_secondary_species)
         # n_species must be equal to len(list_species), because of set_species_list
-        assert self.n_species == (len(self.names_primary_species) + len(self.name_secondary_species)), \
+        assert self.n_species == (len(self.name_primary_species) + len(self.name_secondary_species)), \
         "The length of the n_species on the sum of list and the names_primary_species and secondary species is not equal."
         # set in the list of primary and secondary species is different
         assert len(set(self.name_primary_species).intersection(set(self.name_secondary_species)))== 0, "The names on the primary and the secondary species are repeated."        
@@ -98,12 +99,17 @@ class Database:
             "Species %r is not in the primary or secondary list" %self.list_species[i].name
             
     # Check that the S matrix is linear independent and if not output an erorr and point where is the problem
-    def check_S_linear_independent(self):
-        determinant_S = np.linalg.det(self.S)    # If it does not work maybe code numpy.linalg.slogdet(a)[https://docs.scipy.org/doc/numpy/reference/generated/numpy.linalg.slogdet.html]
-        if determinant_S == 0:
-            M = sp.Matrix(self.S)
-            reduced_form, inds = M.rref()
-            r = set(inds).symmetric_difference(range(0, self.n_reactions))
+    def check_Srows_linear_independent(self):
+        rank_S = np.linalg.matrix_rank(self.S)
+        if rank_S != len(self.S_rows):
             self.S = None
-            raise ValueError('The following equations on the database are linear dependent (Please remove them):' + repr(r))
+            raise ValueError('One of your reaction equations is not linear dependent.')
+            
+    # Remove the columns that are zero from the S matrix and modifies therefore the S matrix and the s_columns
+    def Remove_Columns_S_zero(self):
+        col_pos = (~self.S.any(axis=0))
+        for i in range(0, col_pos.size):
+            if col_pos [i] == True:
+                self.S = np.delete(self.S, i, 1)
+                self.S_columns.pop(i)
     
