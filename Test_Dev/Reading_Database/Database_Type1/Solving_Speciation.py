@@ -7,10 +7,11 @@ Created on Wed Aug  1 10:25:11 2018
 from Species import Aq_Species
 from Reaction import Reaction
 from Database import Database
+from ChemSys import ChemSys
 from creating_databaseObject_from_text_type1 import *
+from Read_input_file_type1 import *
 # Read database
 database = 'Type1_Database.txt'
-infile = 'Type1_Input.txt'
 # Instantiating database
 Species_list, Reaction_list, primary_species_list, secondary_species_list = creating_databaseObject_from_text_type1 (database)
 
@@ -31,9 +32,10 @@ D.create_S()
 #
 #
 # Reading input
-
+infile = 'Type1_Input.txt'
 # Instantiating input
-
+list_prim, list_val = Read_input_file_type1 (infile)
+C = ChemSys( list_prim, list_val, D)
 
 # Calculating Speciation
 
