@@ -93,11 +93,12 @@ class Database:
         "The length of the n_species on the sum of list and the names_primary_species and secondary species is not equal."
         # set in the list of primary and secondary species is different
         assert len(set(self.name_primary_species).intersection(set(self.name_secondary_species)))== 0, "The names on the primary and the secondary species are repeated."        
-        # look that all the species in the list_spicies belong to primary_species or to secondary_species
+        # look that all the species in the list_spicies belong to primary_species or to secondary_species and that there are in the correct order
+        l_names_primary_and_secondary = self.name_primary_species + self.name_secondary_species
         for i in range(0, self.n_species):
             assert self.list_species[i].name in self.name_primary_species or self.list_species[i].name in self.name_secondary_species, \
-            "Species %r is not in the primary or secondary list" %self.list_species[i].name
-            
+            "Species %r is not in the primary or secondary list" %self.list_species[i].name 
+            assert self.list_species[i].name == l_names_primary_and_secondary[i], "Species %r is not in the primary or secondary list" %self.list_species[i].name   #Actually if this conditions is fullfill the above condition can be removed
     # Check that the S matrix is linear independent and if not output an erorr and point where is the problem
     def check_Srows_linear_independent(self):
         rank_S = np.linalg.matrix_rank(self.S)
