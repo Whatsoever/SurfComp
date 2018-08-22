@@ -4,6 +4,7 @@ Created on Wed Aug  1 11:08:12 2018
 
 @author: Lützenkirchen, Heberling, Jara
 """
+import numpy as np
 
 class ChemSys:
     # Constructor
@@ -86,8 +87,20 @@ class ChemSys:
             self.list_species.append(DatabaseC.list_species[pos])
             
     # Calculations
+    def Create_S (self):    
+        # Columns and rows definition of the S matrix
+        self.S_columns = self.name_primary_species + self.name_secondary_species
+        self.n_reactions =len(self.list_reactions)
+        self.S_rows = range( self.n_reactions)
         
-        
+        # Instantiating S matrix
+        self.S = np.zeros((len(self.S_rows), len(self.S_columns)))
+        # The stoichiometric matrix must be fulled with the values of the Reaction classes stored in the list_reactions
+        for i in range(0, self.n_reactions):
+            d = [*self.list_reactions[i].reaction]
+            for j in d:
+                self.S[i,self.S_columns.index(j)] = self.list_reactions[i].reaction[j]
+        qew,rew = np.linalg.qr(self.S)
         
         
         
