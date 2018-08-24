@@ -114,6 +114,8 @@ class ChemSys (Database):
     # It is supposed to be obtained by means of a Gauss-Jordan elimination
     def calculate_U_f1 (self):
         '''
+            Calculates U from the Stoichiometric matrix by using "Gauss-Jordan elimination". Saaltink et al., 1998  (equation 24) 
+            Actually the Gaus elimination is applied to the transpose of St
         '''
         S1, S2 = self.separte_S_into_S1_and_S2()
         # Create Identity
@@ -125,6 +127,7 @@ class ChemSys (Database):
     
     def check_U_consistancy(self):
         '''
+        multiplies U*S_transpose and checks that all the values are zero, which implies that U is the kernel of the S_transpose, necessary for the use of components
         '''
         R = np.matmul(C.U, C.S.transpose())
         b = not np.any(R)
