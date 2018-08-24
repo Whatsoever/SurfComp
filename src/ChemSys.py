@@ -4,9 +4,10 @@ Created on Wed Aug  1 11:08:12 2018
 
 @author: Lützenkirchen, Heberling, Jara
 """
+from Database import Database
 import numpy as np
 
-class ChemSys:
+class ChemSys (Database):
     # Constructor
     def __init__(self, list_prim, list_val, DatabaseC):
         '''
@@ -20,7 +21,7 @@ class ChemSys:
         '''
         DatabaseC.check_consistency_species()       # This method is run to assure that what is written below this line has sense.
         # Getting index of list_prim in the database
-        indices_ps = self.Index_InputPrimaryspeciesinDatabase ( list_prim, DatabaseC.name_primary_species)
+        indices_ps = self.index_InputPrimaryspeciesinDatabase ( list_prim, DatabaseC.name_primary_species)
         # Sorting list_prim and list_val according to the indices, AFTER THIS STEP THE LIST BECOMES TUPLE !!!!!!!!!!!
         indices_ps, list_prim, list_val = zip(*sorted(zip(indices_ps, list_prim, list_val)))
         # name_prymary_species is like list_prim but order following the order of the Database
@@ -28,18 +29,23 @@ class ChemSys:
         # It is the list of species = [Species1, Species2, Species3] related to name_primary_species
         self.list_species = [DatabaseC.list_species[i] for i in indices_ps]
         # Check which Reactions in the database occur in the ChemSys --> from there the secondary species will be obtained.
-        indices_r_inDatabase, self.name_secondary_species = self.Index_reactionsinDatabase ( DatabaseC.list_reactions, DatabaseC.n_reactions)
+        indices_r_inDatabase, self.name_secondary_species = self.index_reactionsinDatabase ( DatabaseC.list_reactions, DatabaseC.n_reactions)
         # Add secondary species in the list of species
-        self.Add_secondary_species (DatabaseC)
+        self.add_secondary_species (DatabaseC)
         # Get the list of reactions from the Database
         self.list_reactions = [DatabaseC.list_reactions[i] for i in indices_r_inDatabase]
-        
+        self.n_reactions = len(self.list_reactions)
+        self.n_species = len(self.list_species)
+        # For calculations --> This functions are linked to the parents
+        self.create_S()
+        self.create_log_k_vector()
+        self.create_charge_vector()
     # Setters
     
     # Initializations functions
     # Searching
     # Returns the indice of the chemical species in the database
-    def Index_InputPrimaryspeciesinDatabase (self, list1, list2):
+    def index_InputPrimaryspeciesinDatabase (self, list1, list2):
         '''
             The function returns a list of indices of the position of list1 in list2. --> E.g. list1 =[a c], list2 = [a b c d] function returns listindices = [1,3]
             Precondition1: list1 <= list2
@@ -53,7 +59,7 @@ class ChemSys:
         return list_indices
     
     # Returns the index of the reactions that can occur according to the database
-    def Index_reactionsinDatabase (self, l_dic_react, len_l_dic_react):
+    def index_reactionsinDatabase (self, l_dic_react, len_l_dic_react):
         '''
             The function returns two list. One with the indices of the reactions that occur in the ChemSys according to the inputed Database, and the other the secondary species in each reaction. 
             Both, list are in agremment. e.g. l_ind_reaction = [0, 4, 6, 9], l_secondary_species = ['A' 'B' 'C' 'F']  From reaction 0 of the database the secondary species obtained is A, from 6 is C, and so on.
@@ -77,7 +83,7 @@ class ChemSys:
         return list_indices_r, list_secondary_species_r
     
     # Adds secondary species
-    def Add_secondary_species (self, DatabaseC):
+    def add_secondary_species (self, DatabaseC):
         '''
             Adds the secondary species in the list of species
         '''
@@ -86,22 +92,45 @@ class ChemSys:
             pos = l.index(i)
             self.list_species.append(DatabaseC.list_species[pos])
             
-    # Calculations
-    def Create_S (self):    
-        # Columns and rows definition of the S matrix
-        self.S_columns = self.name_primary_species + self.name_secondary_species
-        self.n_reactions =len(self.list_reactions)
-        self.S_rows = range( self.n_reactions)
-        
-        # Instantiating S matrix
-        self.S = np.zeros((len(self.S_rows), len(self.S_columns)))
-        # The stoichiometric matrix must be fulled with the values of the Reaction classes stored in the list_reactions
-        for i in range(0, self.n_reactions):
-            d = [*self.list_reactions[i].reaction]
-            for j in d:
-                self.S[i,self.S_columns.index(j)] = self.list_reactions[i].reaction[j]
-        qew,rew = np.linalg.qr(self.S)
-        
+
+    ###################### Calculations #######################################
+    # Separate matrix from Primary and Secondary species
+    def separte_S_into_S1_and_S2 (self):
+        '''
+            Separates primary and Secondary species matrices.
+            e.g.:
+                            Sp1  Sp1  Sp2                      
+                     R1 ||  x11  x12  x13 ||                    || x11 x12 ||           || x11 ||
+                S =  R2 ||  x21  x22  x23 ||        in to  S1 = || x21 x22 ||   and S2= || x21 ||
+                     R3 ||  x31  x32  x33 ||                    || x31 x32 ||           || x32 ||
+        ''' 
+        S1 = self.S[:, 0:len(self.name_primary_species)].copy() 
+        S2 = self.S[:, len(self.name_primary_species):].copy()
+        return S1, S2
+    
+    # Component matrix functions
+    
+    # In This function the component matrix U is calculated as steated by Steefel and MacQuarrie, 1996 or as it is the same stated by Saaltink et al., 1998  (equation 24) 
+    # It is supposed to be obtained by means of a Gauss-Jordan elimination
+    def calculate_U_f1 (self):
+        '''
+        '''
+        S1, S2 = self.separte_S_into_S1_and_S2()
+        # Create Identity
+        I = np.identity (self.n_species - self.n_reactions)
+        # Use  Saaltink et al., 1998  (equation 24) 
+        St = np.matmul(-S1.transpose(), np.linalg.inv(S2.transpose()))  # -S1t*inv(S2t)
+        self.U = np.concatenate((I, St), 1)
+        self.check_U_consistancy()
+    
+    def check_U_consistancy(self):
+        '''
+        '''
+        R = np.matmul(C.U, C.S.transpose())
+        b = not np.any(R)
+        if b == false:
+            raise ValueError('[ChemSys Class/ check_U_consistancy] Apparently the U matrix is not the Kernel of the transpose of the stoichiometric matrix.')
+    
         
         
         

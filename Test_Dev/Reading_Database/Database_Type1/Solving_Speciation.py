@@ -4,6 +4,7 @@ Created on Wed Aug  1 10:25:11 2018
 
 @author: DaniJ
 """
+import numpy as np
 from Species import Aq_Species
 from Reaction import Reaction
 from Database import Database
@@ -36,7 +37,7 @@ infile = 'Type1_Input.txt'
 # Instantiating input
 list_prim, list_val = Read_input_file_type1 (infile)
 C = ChemSys( list_prim, list_val, D)
-
+C.calculate_U_f1()
 # Calculating Speciation
-
+print(np.matmul(C.U, C.S.transpose()))
 # Pre-processing Results

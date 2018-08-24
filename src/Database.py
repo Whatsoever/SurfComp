@@ -83,7 +83,7 @@ class Database:
         qew,rew = np.linalg.qr(self.S)
         # Check that the S matrix is linear independent and if not output an erorr and point where is the problem
         self.check_Srows_linear_independent()
-        self.Remove_Columns_S_zero()
+        self.remove_Columns_S_zero()
         
     # Check that the database is consistent
     def check_consistency_species(self):
@@ -98,7 +98,7 @@ class Database:
         for i in range(0, self.n_species):
             assert self.list_species[i].name in self.name_primary_species or self.list_species[i].name in self.name_secondary_species, \
             "Species %r is not in the primary or secondary list" %self.list_species[i].name 
-            assert self.list_species[i].name == l_names_primary_and_secondary[i], "Species %r is not in the primary or secondary list" %self.list_species[i].name   #Actually if this conditions is fullfill the above condition can be removed
+            assert self.list_species[i].name == l_names_primary_and_secondary[i], "Species %r is not in the primary or secondary list" %self.list_species[i].name   #Actually if this conditions is fullfill the above condition can be removed, I leave it since it check twice (good redundancy?)
     # Check that the S matrix is linear independent and if not output an erorr and point where is the problem
     def check_Srows_linear_independent(self):
         rank_S = np.linalg.matrix_rank(self.S)
@@ -107,7 +107,7 @@ class Database:
             raise ValueError('One of your reaction equations is not linear dependent.')
             
     # Remove the columns that are zero from the S matrix and modifies therefore the S matrix and the s_columns
-    def Remove_Columns_S_zero(self):
+    def remove_Columns_S_zero(self):
         col_pos = (~self.S.any(axis=0))
         for i in range(0, col_pos.size):
             if col_pos [i] == True:
