@@ -83,7 +83,7 @@ class Database:
         qew,rew = np.linalg.qr(self.S)
         # Check that the S matrix is linear independent and if not output an erorr and point where is the problem
         self.check_Srows_linear_independent()
-        self.remove_Columns_S_zero()
+
         
     # Check that the database is consistent
     def check_consistency_species(self):
@@ -106,11 +106,5 @@ class Database:
             self.S = None
             raise ValueError('One of your reaction equations is not linear dependent.')
             
-    # Remove the columns that are zero from the S matrix and modifies therefore the S matrix and the s_columns
-    def remove_Columns_S_zero(self):
-        col_pos = (~self.S.any(axis=0))
-        for i in range(0, col_pos.size):
-            if col_pos [i] == True:
-                self.S = np.delete(self.S, i, 1)
-                self.S_columns.pop(i)
+
     
