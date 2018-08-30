@@ -39,5 +39,7 @@ list_prim, list_val = Read_input_file_type1 (infile)
 C = ChemSys( list_prim, list_val, D)
 C.calculate_U_f1()
 # Calculating Speciation
-print(np.matmul(C.U, C.S.transpose()))
+C.calculate_speciation (1)
+#print(np.matmul(C.U, C.S.transpose()))
 # Pre-processing Results
+

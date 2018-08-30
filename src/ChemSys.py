@@ -129,12 +129,48 @@ class ChemSys (Database):
         '''
         multiplies U*S_transpose and checks that all the values are zero, which implies that U is the kernel of the S_transpose, necessary for the use of components
         '''
-        R = np.matmul(C.U, C.S.transpose())
+        R = np.matmul(self.U, self.S.transpose())
         b = not np.any(R)
-        if b == false:
+        if b == False:
             raise ValueError('[ChemSys Class/ check_U_consistancy] Apparently the U matrix is not the Kernel of the transpose of the stoichiometric matrix.')
     
+    # Calculations
+    # Speciation calculations
+    def caculate_speciation(self, algorithm_num):
+        if algorithm == 1:
+            self.speciation_algorithm1()
+        else:
+            raise ValueError('Not algorithm with these number.')
+    
+    def speciation_algorithm1(self, tolerance = 1e-4, max_n_iterations = 100):
+        # Tolerance
+        #tolerance = 1e-4
+        # Initial guess c1 (c2 must also be inizialitated)
+        c1_n#?
+        c2_n0#?
+        delta_c = 0;
+        # start loop
+        b = False        # True will mean that no solution has been found
+        counter_iterations = 0;
+        #max_n_iteration = 100;
         
+        while not b and counter_iterations < max_n_iterations:
+            counter_iterations += 1
+            
+            #update cn
+            cn = cn + delta_c
+            # Compute c2, in order to do such think, compute I, activity, and then c2.
+            ionic_strength = self.calculate_ionic_strength (c1_n, c2_n0)
+            activity_coefficient = self.calculate_activity (ionic_strength)
+            c2_n1 = self.speciation_secondaryspecies (c1_n, activity_coefficient)
+            #compute f
+            f = self.calculate_NR_function (c1_n, c2_n1)
+            # compute df/dc1
+            df_dc1 = self.Jacobian_NR_function(c1_n,c2_n1)
+            # delta_c = c_n+1 - c_n
+            delta_c = -self.division_vector(f, df_dc1)
+            # Converge?
+            b = delta_c < tolerance
         
         
         
