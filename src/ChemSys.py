@@ -11,9 +11,9 @@ class ChemSys (Database):
     # Constructor
     def __init__(self, list_prim, list_val, DatabaseC):
         '''
-            list_prim = ['Cl-', 'H2O', 'H+']        It is supossed to be the primary species in the system, it should be in accordance with the database.
+            list_prim = ['Cl-', 'H2O', 'H+']        It is supossed to be the primary species associated to a component.
             
-            list_val  = [5 4 20]                    It is supposed to be the concentration values of the primary species stated in list_prim, namely Cl- = 5. So far units are mol/L          
+            list_val  = [5 4 20]                    It is supposed to be the concentration values of the components associated to primary species that can be found in list_prim, namely Cl- = 5. So far units are mol/L          
         
             DatabaseC                               It is supposed to be the database that is going to be used in order to built the stochiometric matrix of these system, and the pertinant secondary species, log_k values, etc
             
@@ -24,6 +24,8 @@ class ChemSys (Database):
         indices_ps = self.index_InputPrimaryspeciesinDatabase ( list_prim, DatabaseC.name_primary_species)
         # Sorting list_prim and list_val according to the indices, AFTER THIS STEP THE LIST BECOMES TUPLE !!!!!!!!!!!
         indices_ps, list_prim, list_val = zip(*sorted(zip(indices_ps, list_prim, list_val)))
+        
+        self.u_comp_vec = np.array(list_val)
         # name_prymary_species is like list_prim but order following the order of the Database
         self.name_primary_species = list(list_prim)                        
         # It is the list of species = [Species1, Species2, Species3] related to name_primary_species
@@ -40,6 +42,7 @@ class ChemSys (Database):
         self.create_S()
         self.create_log_k_vector()
         self.create_charge_vector()
+        
     # Setters
     
     # Initializations functions
@@ -140,14 +143,16 @@ class ChemSys (Database):
         if algorithm == 1:
             self.speciation_algorithm1()
         else:
-            raise ValueError('Not algorithm with these number.')
+            raise ValueError('Not algorithm for speciation with this number.')
     
-    def speciation_algorithm1(self, tolerance = 1e-4, max_n_iterations = 100):
+    def speciation_algorithm1(self, tolerance = 1e-8, max_n_iterations = 100):
         # Tolerance
         #tolerance = 1e-4
         # Initial guess c1 (c2 must also be inizialitated)
-        c1_n#?
-        c2_n0#?
+        c = self.Instatiation_step(1)
+        nps = length(self.name_primary_species)
+        c1_n = c[:nps].copy()
+        c2_n0 = c[nps:].copy()
         delta_c = 0;
         # start loop
         b = False        # True will mean that no solution has been found
@@ -155,8 +160,6 @@ class ChemSys (Database):
         #max_n_iteration = 100;
         
         while not b and counter_iterations < max_n_iterations:
-            counter_iterations += 1
-            
             #update cn
             cn = cn + delta_c
             # Compute c2, in order to do such think, compute I, activity, and then c2.
@@ -171,9 +174,33 @@ class ChemSys (Database):
             delta_c = -self.division_vector(f, df_dc1)
             # Converge?
             b = delta_c < tolerance
+            if b == True:
+                break
+            else:
+                counter_iterations += 1
+                
         
         
         
+    def c_ini = Instantiation_step (self, type_I=1):
+            if type_I == 0:
+                c_ini = np.ones(self.n_species)*1e-10
+                c_ini = c_ini.transpose()
+            elif type_I == 1:
+                c_ini = self.NewtonRaphson_noactivitycoefficient()
+            else:
+                raise ValueError('Not algorithm for instantiationwith these number.')
         
+    def NewtonRapshon_noactivitycoefficient(self, tolerance = 1e-10, max_n_iterations = 100):
+        c_guess = Instantiation_step (self, type_I=0)
+        c_n = c_guess
         
+        b = False        # True will mean that no solution has been found
+        counter_iterations = 0;
+        #max_n_iteration = 100;
+        
+        while not b and counter_iterations < max_n_iterations:
+            # Calculate F; F = [U*c-u; S*log(c)-logK];
+            Upper_Part = self.U.dot(c_n) - self.u_comp_vec
+            Lower_Part = self.S.dot(np.log10(c_n)) - np.array(self.log_k_vector)'
     
