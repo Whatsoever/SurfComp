@@ -182,25 +182,40 @@ class ChemSys (Database):
         
         
         
-    def c_ini = Instantiation_step (self, type_I=1):
+    def Instantiation_step (self, type_I=1):
             if type_I == 0:
-                c_ini = np.ones(self.n_species)*1e-10
+                c_ini = np.ones(self.n_species)
+                #c_ini = np.array([55.50667,  1.227e-10, 1.227e-04, 3.388e-05, 8.415e-05, 8.312e-05, 5.565e-06, 1.134e-07, 2.248e-08, 1.475e-07])# for example 1
                 c_ini = c_ini.transpose()
             elif type_I == 1:
                 c_ini = self.NewtonRaphson_noactivitycoefficient()
             else:
                 raise ValueError('Not algorithm for instantiationwith these number.')
-        
+            return c_ini
+           
     def NewtonRapshon_noactivitycoefficient(self, tolerance = 1e-10, max_n_iterations = 100):
-        c_guess = Instantiation_step (self, type_I=0)
+        c_guess = self.Instantiation_step( type_I=0)
         c_n = c_guess
         
         b = False        # True will mean that no solution has been found
         counter_iterations = 0;
         #max_n_iteration = 100;
+        err= tolerance+1
         
-        while not b and counter_iterations < max_n_iterations:
+        while err>tolerance and counter_iterations < max_n_iterations:
             # Calculate F; F = [U*c-u; S*log(c)-logK];
             Upper_Part = self.U.dot(c_n) - self.u_comp_vec
-            Lower_Part = self.S.dot(np.log10(c_n)) - np.array(self.log_k_vector)'
-    
+            Lower_Part = self.S.dot(np.log10(c_n)) - np.array(self.log_k_vector).transpose()
+            F = np.concatenate((Upper_Part, Lower_Part), axis = 0)
+            #Calculate DF; DF =  [U; S*diag((1/ln10)/c)]
+            D_Second_Part = np.matmul(self.S, np.diag((1/2.306)/c_n))
+            DF = np.concatenate((self.U, D_Second_Part), axis = 0)
+            # Calculate dc; dc = -inv(DF)*F
+            dc = np.linalg.solve(DF,-F)
+            # next cn not higher than 0,005*abs(c)
+            c_n1 = np.maximum(c_n+dc, 0.005*abs(c_n))
+            #error
+            err = max(abs(c_n1-c_n));
+            #update
+            c_n = c_n1;
+        return c_n

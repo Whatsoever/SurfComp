@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+Created on Tue Sep  4 10:18:43 2018
+
+@author: DaniJ
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Wed Aug  1 10:25:11 2018
 
 @author: DaniJ
@@ -31,17 +38,15 @@ D.create_S()
 
 
 #
-#
 # Reading input
+#
 infile = 'Type1_Input.txt'
 # Instantiating input
 list_prim, list_val = Read_input_file_type1 (infile)
 C = ChemSys( list_prim, list_val, D)
 C.calculate_U_f1()
 # Calculating Speciation
-#C.calculate_speciation (1)
-#print(np.matmul(C.U, C.S.transpose()))
-# Pre-processing Results
-
 c = C.NewtonRapshon_noactivitycoefficient()
 print(c)
+#print(np.matmul(C.U, C.S.transpose()))
+# Pre-processing Results

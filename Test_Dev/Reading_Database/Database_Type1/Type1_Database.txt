@@ -53,5 +53,5 @@ CO2  	0	CO3-2  -1  H+  -2   H2O   1
 CaOH+  1	Ca+2  -1   H2O  -1   H+  1
 -log_k	-12.78
 
-MgOH+   1	Mg+2  -1   H2O  -1   H+  -1
+MgOH+   1	Mg+2  -1   H2O  -1   H+  1
 -log_k	-11.44

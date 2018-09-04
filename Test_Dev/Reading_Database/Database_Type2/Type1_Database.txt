@@ -1,0 +1,14 @@
+                                                       # The first file is supossed to be the most simple. Things like, temperature coefficients of a polynomial in order to know the
+# equilibrium constant and other parameters might be not include. 
+
+Primary_Species
+
+# Name		# Charge		# MolarWeight		
+A		0			18.0153			
+B		1			1.0079
+
+
+Secondary_Species
+# Name	#Charge 	#Reaction ('Primary Species' 'Stoichiometric' ....)
+C         1 		A	-1	B	-1
+-log_k		-0.93
