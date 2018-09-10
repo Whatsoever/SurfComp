@@ -44,6 +44,8 @@ def creating_databaseObject_from_text_type1 (text):
                     words_line = temp.split()
                     primary_species_list.append(words_line[0])
                     S = Aq_Species(words_line[0])
+                    if words_line[0] == 'e-':
+                        S.it_is_charge(True)
                     S.set_charge (int(words_line[1]))
                     S.set_gfw (float(words_line[2]))
                     Species_list.append(S)

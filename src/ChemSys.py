@@ -42,8 +42,25 @@ class ChemSys (Database):
         self.create_S()
         self.create_log_k_vector()
         self.create_charge_vector()
-        
+        # It is assumed some values by default (These values can be changed but must be specified)
+        #The following part is drawn from section (1.1.2.6 Calculation of activity coefficient -- Groundwater Geochemistry --- Broder J. Merkel, Britta Planer-Friedrich)
+        self.Temp_k = (273.15+25)   # It assumed that initially we are at T=25°C and we assume atmospheric pressure for dielectric and other constants
+        self.calculate_dielectric_constant()
+        self.calculate_waterdensity()
+        self.calculate_A_activitypar()
+        self.calculate_B_activitypar()
     # Setters
+    def set_T(self, Temp_K):
+        '''
+            The function set the temperature of the chemical system which is supposed to be in Kelvins.
+            Furthermore, it calculated the dielectric_constant, the density, the parameter A and B of the Debye-Huckel equation
+            The extra-calculations are baased on section 1.1.2.6 Calculation of activity coefficient -- Groundwater Geochemistry --- Broder J. Merkel, Britta Planer-Friedrich
+        '''
+        self.Temp_k = Temp_K
+        self.calculate_dielectric_constant()
+        self.calculate_waterdensity()
+        self.calculate_A_activitypar()
+        self.calculate_B_activitypar()
     
     # Initializations functions
     # Searching
@@ -95,8 +112,70 @@ class ChemSys (Database):
             pos = l.index(i)
             self.list_species.append(DatabaseC.list_species[pos])
             
-
+  
     ###################### Calculations #######################################
+    
+    ########### Calculating parameters ####################
+    
+    def calculate_dielectric_constant(self):
+        '''
+            Calculates the dielectric constant
+            The extra-calculations are baased on the book section 1.1.2.6 Calculation of activity coefficient -- Groundwater Geochemistry --- Broder J. Merkel, Britta Planer-Friedrich
+        '''
+        self.dielectric_constant = 2727.586 + 0.6224107*self.Temp_k - 466.9151*np.log(self.Temp_K) - (52000.87/self.Temp_K)
+    
+    def calculate_density (self):
+        '''
+            Calculates the density of the water
+            The extra-calculations are baased on the book section 1.1.2.6 Calculation of activity coefficient -- Groundwater Geochemistry --- Broder J. Merkel, Britta Planer-Friedrich
+        '''
+        Tc = self.Temp_K - 273.15
+        A = (Tc-3.9863)^2
+        B = Tc + 288.9414
+        C = Tc + 68.12963
+        D = (A*B)/(508929.2*C)
+        E = 0.011445*np.exp(-374.3/Tc)
+        self.waterdensity = 1 - D + E
+        
+        
+    def calculate_A_activitypar (self):
+        '''
+            Calculates the parameter A of the Debye Hueckel equation
+            The units are supossed to be kg^(1/2)/mol^(1/2)
+            Actually if you want the L/mol is possible to divide by the square of the density to obtain such value
+            The extra-calculations are baased on the book section 1.1.2.6 Calculation of activity coefficient -- Groundwater Geochemistry --- Broder J. Merkel, Britta Planer-Friedrich
+        '''
+        A = 1.82483e6*np.sqrt(self.waterdensity)
+        B = (self.Temp_k*self.dielectric_constant)^(3/2)
+        self.A_activitypar = A/B
+        
+    def calculate_B_activitypar (self):
+        '''
+            Calculates the parameter A of the Debye Hueckel equation
+            The units are supossed to be kg^(1/2)/mol^(1/2)*cm
+            Actually if you want the L/mol is possible to divide by the square of the density to obtain such value
+            The extra-calculations are baased on the book section 1.1.2.6 Calculation of activity coefficient -- Groundwater Geochemistry --- Broder J. Merkel, Britta Planer-Friedrich
+            Here the equation is a bit different than that given in the book. The book takes the equation from 
+            Theoretical prediction of the thermodynamic behavior of aqueous electrolytes at high pressures and temperatures; II, Debye Huckel parameters for activity coefficients and relative partial molal properties
+            The differences is 10-8 and is related to the fact that they uses angstroms instead of cm
+        '''
+        A = 50.29158649e8*np.sqrt(self.waterdensity)
+        B = np.sqrt(self.Temp_k*self.dielectric_constant)
+        self.B_activitypar = A/B
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    ############ End calculating parameters ####################
+    
+    
+    
     # Separate matrix from Primary and Secondary species
     def separte_S_into_S1_and_S2 (self):
         '''
@@ -112,7 +191,14 @@ class ChemSys (Database):
         return S1, S2
     
     # Component matrix functions
-    
+    def calculate_ionic_strength (self, c):
+        Ionic_s=0
+        for i in range(0, self.n_species):
+            z = self.list_species[i].charge
+            Ionic_s = c[i]*z*z
+        Ionic_s = 0.5*Ionic_s
+        
+        
     # In This function the component matrix U is calculated as steated by Steefel and MacQuarrie, 1996 or as it is the same stated by Saaltink et al., 1998  (equation 24) 
     # It is supposed to be obtained by means of a Gauss-Jordan elimination
     def calculate_U_f1 (self):
@@ -127,6 +213,8 @@ class ChemSys (Database):
         St = np.matmul(-S1.transpose(), np.linalg.inv(S2.transpose()))  # -S1t*inv(S2t)
         self.U = np.concatenate((I, St), 1)
         self.check_U_consistancy()
+        # If there is charge the column of U must be zero
+        self.charge_columns_0()
     
     def check_U_consistancy(self):
         '''
@@ -136,6 +224,14 @@ class ChemSys (Database):
         b = not np.any(R)
         if b == False:
             raise ValueError('[ChemSys Class/ check_U_consistancy] Apparently the U matrix is not the Kernel of the transpose of the stoichiometric matrix.')
+    
+    def charge_columns_0(self):
+        for i in range(0, self.n_species):
+            if hasattr(self.list_species[i], 'charge_element'):
+                if self.list_species[i].charge_element == True:
+                    New_U = self.U.copy()
+                    New_U[i, i] = 0;
+        self.U = New_U
     
     # Calculations
     # Speciation calculations
@@ -163,7 +259,7 @@ class ChemSys (Database):
             #update cn
             cn = cn + delta_c
             # Compute c2, in order to do such think, compute I, activity, and then c2.
-            ionic_strength = self.calculate_ionic_strength (c1_n, c2_n0)
+            ionic_strength = self.calculate_ionic_strength (np.concatenate(c1_n, c2_n0))
             activity_coefficient = self.calculate_activity (ionic_strength)
             c2_n1 = self.speciation_secondaryspecies (c1_n, activity_coefficient)
             #compute f
@@ -218,4 +314,12 @@ class ChemSys (Database):
             err = max(abs(c_n1-c_n));
             #update
             c_n = c_n1;
+        self.c = c_n
         return c_n
+    
+    
+    
+    ###### Output values #####
+    def print_speciation(self):
+        for i in range(0, self.n_species):
+            print(self.list_species[i].name + ' : ' + str(self.c[i]) + '\n')

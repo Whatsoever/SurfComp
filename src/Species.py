@@ -29,3 +29,7 @@ class Aq_Species (Species):
         self.gfw = molar_weight
         
     #Getters
+    
+    # Special things
+    def it_is_charge(self, boolean):
+        self.charge_element = boolean
