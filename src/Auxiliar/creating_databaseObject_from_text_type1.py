@@ -41,13 +41,21 @@ def creating_databaseObject_from_text_type1 (text):
                 if temp == '' or temp[0] == '#':
                     line_counter += 1
                 elif temp != 'Secondary_Species':
-                    words_line = temp.split()
+                    words_line = temp.split()                
                     primary_species_list.append(words_line[0])
                     S = Aq_Species(words_line[0])
                     if words_line[0] == 'e-':
                         S.it_is_charge(True)
+                    elif words_line[0] == 'H2O':
+                        S.Set_f_activity_coefficient ('water')
                     S.set_charge (int(words_line[1]))
                     S.set_gfw (float(words_line[2]))
+                    if len(words_line) > 3:
+                        if words_line[3][0] != '#':
+                            S.set_ionsizeparameter(float(words_line[3]))
+                    if len(words_line) > 4:        
+                        if words_line[4][0] != '#':
+                            S.set_deviationionsizeparameter(float(words_line[4]))
                     Species_list.append(S)
                     line_counter += 1
                 
@@ -64,6 +72,12 @@ def creating_databaseObject_from_text_type1 (text):
                         R.set_log_k(float(words_line[1]))
                         Reaction_list.append(R)
                         line_counter +=1
+                    elif words_line[0] == '-a':
+                        S.set_ionsizeparameter(float(words_line[1]))
+                        line_counter += 1
+                    elif words_line[0] == '-b':
+                        S.set_deviationionsizeparameter(float(words_line[1]))
+                        line_counter += 1
                     elif temp != 'Primary_Species':
                         R = Reaction()
                         dic_reaction = {}

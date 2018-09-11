@@ -44,4 +44,4 @@ C.calculate_U_f1()
 # Pre-processing Results
 
 c = C.NewtonRapshon_noactivitycoefficient()
-C.Print_Speciation()
+C.print_speciation()

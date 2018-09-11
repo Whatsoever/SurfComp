@@ -122,15 +122,15 @@ class ChemSys (Database):
             Calculates the dielectric constant
             The extra-calculations are baased on the book section 1.1.2.6 Calculation of activity coefficient -- Groundwater Geochemistry --- Broder J. Merkel, Britta Planer-Friedrich
         '''
-        self.dielectric_constant = 2727.586 + 0.6224107*self.Temp_k - 466.9151*np.log(self.Temp_K) - (52000.87/self.Temp_K)
+        self.dielectric_constant = 2727.586 + 0.6224107*self.Temp_k - 466.9151*np.log(self.Temp_k) - (52000.87/self.Temp_k)
     
-    def calculate_density (self):
+    def calculate_waterdensity (self):
         '''
             Calculates the density of the water
             The extra-calculations are baased on the book section 1.1.2.6 Calculation of activity coefficient -- Groundwater Geochemistry --- Broder J. Merkel, Britta Planer-Friedrich
         '''
-        Tc = self.Temp_K - 273.15
-        A = (Tc-3.9863)^2
+        Tc = self.Temp_k - 273.15
+        A = (Tc-3.9863)**2
         B = Tc + 288.9414
         C = Tc + 68.12963
         D = (A*B)/(508929.2*C)
@@ -146,7 +146,7 @@ class ChemSys (Database):
             The extra-calculations are baased on the book section 1.1.2.6 Calculation of activity coefficient -- Groundwater Geochemistry --- Broder J. Merkel, Britta Planer-Friedrich
         '''
         A = 1.82483e6*np.sqrt(self.waterdensity)
-        B = (self.Temp_k*self.dielectric_constant)^(3/2)
+        B = (self.Temp_k*self.dielectric_constant)**(3/2)
         self.A_activitypar = A/B
         
     def calculate_B_activitypar (self):
@@ -192,13 +192,23 @@ class ChemSys (Database):
     
     # Component matrix functions
     def calculate_ionic_strength (self, c):
+        '''
+            Calculate the ion strength 
+        '''
         Ionic_s=0
         for i in range(0, self.n_species):
             z = self.list_species[i].charge
             Ionic_s = c[i]*z*z
         Ionic_s = 0.5*Ionic_s
         
-        
+    def calculate_log_activity_coefficient(self, ionic_strength, ctemp):
+        log_coef_a=np.zeros(self.n_species)
+        for i in range(0, self.n_species):
+            if self.list_species[i] == 'H2O':
+                log_coef_a[i] = self.list_species[i].log_coefficient_activity(self, ionic_strength, c=np.delete(ctemp,i))
+            else:
+                log_coef_a[i] = self.list_species[i].log_coefficient_activity(ionic_strength, A=self.B_activitypar, B = self.B_activitypar )
+        return log_coef_a
     # In This function the component matrix U is calculated as steated by Steefel and MacQuarrie, 1996 or as it is the same stated by Saaltink et al., 1998  (equation 24) 
     # It is supposed to be obtained by means of a Gauss-Jordan elimination
     def calculate_U_f1 (self):
@@ -226,12 +236,18 @@ class ChemSys (Database):
             raise ValueError('[ChemSys Class/ check_U_consistancy] Apparently the U matrix is not the Kernel of the transpose of the stoichiometric matrix.')
     
     def charge_columns_0(self):
+        New_U = self.U.copy()
         for i in range(0, self.n_species):
             if hasattr(self.list_species[i], 'charge_element'):
                 if self.list_species[i].charge_element == True:
-                    New_U = self.U.copy()
                     New_U[i, i] = 0;
         self.U = New_U
+    
+    def log_speciation_secondaryspecies (self, c1_n, log_activity_coefficient, S_prima, log_K_prima, n_primery_species):
+        log_actcoeff_1 = log_activity_coefficient[0:n_primery_species].copy()
+        log_actcoeff_2 = log_activity_coefficient[n_primery_species:].copy()
+        log_c2 = np.matmul(S_prima, (np.log10(c1_n) + log_actcoeff_1 )) + log_K_prima - log_actcoeff_2
+        return log_c2
     
     # Calculations
     # Speciation calculations
@@ -246,28 +262,32 @@ class ChemSys (Database):
         #tolerance = 1e-4
         # Initial guess c1 (c2 must also be inizialitated)
         c = self.Instatiation_step(1)
-        nps = length(self.name_primary_species)
+        nps = len(self.name_primary_species)
         c1_n = c[:nps].copy()
         c2_n0 = c[nps:].copy()
-        delta_c = 0;
+        delta_c1 = np.zeros(nps);
         # start loop
         b = False        # True will mean that no solution has been found
         counter_iterations = 0;
         #max_n_iteration = 100;
-        
+        S1, S2 = separte_S_into_S1_and_S2()
+        S_prima = -np.matmul(np.linalg.inv(S2),S1)
+        log_K_prima = np.matmul(np.linalg.inv(S2), self.log_k_vector)
         while not b and counter_iterations < max_n_iterations:
-            #update cn
-            cn = cn + delta_c
+            #update c1_n
+            c1_n = c1_n + delta_c1
             # Compute c2, in order to do such think, compute I, activity, and then c2.
-            ionic_strength = self.calculate_ionic_strength (np.concatenate(c1_n, c2_n0))
-            activity_coefficient = self.calculate_activity (ionic_strength)
-            c2_n1 = self.speciation_secondaryspecies (c1_n, activity_coefficient)
+            ctemp=np.concatenate(c1_n, c2_n0)
+            ionic_strength = self.calculate_ionic_strength (ctemp)
+            log_activity_coefficient = self.calculate_log_activity_coefficient (ionic_strength)
+            log_c2_n1 = self.log_speciation_secondaryspecies (c1_n, log_activity_coefficient, S_prima, log_K_prima, nps)
+            c2_n1 = 10**log_c2_n1
             #compute f
             f = self.calculate_NR_function (c1_n, c2_n1)
             # compute df/dc1
             df_dc1 = self.Jacobian_NR_function(c1_n,c2_n1)
             # delta_c = c_n+1 - c_n
-            delta_c = -self.division_vector(f, df_dc1)
+            delta_c1 = -self.division_vector(f, df_dc1)
             # Converge?
             b = delta_c < tolerance
             if b == True:

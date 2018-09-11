@@ -3,13 +3,13 @@
 
 Primary_Species
 
-# Name		# Charge		# MolarWeight		
-H2O		0			18.0153			
-H+		1			1.0079
-Ca+2		2			40.08
-CO3-2		-2			12.0111
-Mg+2		2			24.312
-Cl-		-1			35.453
+# Name		# Charge		# MolarWeight	   	#a (Drawn from Pflotran hanford.dat)  #b	
+H2O		0			18.0153			3				
+H+		1			1.0079			9
+Ca+2		2			40.08			6
+CO3-2		-2			12.0111			4.5		
+Mg+2		2			24.312			8		
+Cl-		-1			35.453			3
 
 # Notes: 
 #       1) I am adding water because I am not sure if it is significant for pH speciation or future calculations where Surface plays a role
@@ -34,24 +34,33 @@ OH-         -1 		H2O	-1	H+	1
 
 HCO3- 	-1	CO3-2 -1  H+ -1
 -log_k	10.329
+-a	4
+-b	0
 
 MgCO3   0	CO3-2	-1  Mg+2 -1
 -log_k  2.98
+-a	3
 
 CaCO3   0	Ca+2 -1  CO3-2 -1
 -log_k 3.224
+-a	3
 
 MgHCO3+   1	Mg+2  -1  H+  -1      CO3-2	-1
 -log_k 11.399
+-a	4
 
 CaHCO3+   1	Ca+2 -1  CO3-2 -1  H+  -1
 -log_k	11.435
+-a	4
 
 CO2  	0	CO3-2  -1  H+  -2   H2O   1
 -log_k	16.681
+-a	6			# Value from Jacob Kielland, 1937
 
 CaOH+  1	Ca+2  -1   H2O  -1   H+  1
 -log_k	-12.78
+-a	5			# Made up value
 
 MgOH+   1	Mg+2  -1   H2O  -1   H+  1
 -log_k	-11.44
+-a	4
