@@ -43,5 +43,7 @@ C.calculate_U_f1()
 #print(np.matmul(C.U, C.S.transpose()))
 # Pre-processing Results
 
-c = C.NewtonRapshon_noactivitycoefficient()
+#c = C.NewtonRapshon_noactivitycoefficient()
+
+c = C.speciation_algorithm1()
 C.print_speciation()

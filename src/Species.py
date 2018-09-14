@@ -64,3 +64,11 @@ class Aq_Species (Species):
             b = self.devionsizepar
         log_act_coef = afm.f_log_list(self.f_act_coef, ionic_strength, c, A, B, a, b, z)
         return log_act_coef
+    
+    def dgamma_dionicstrength(self, actcoeff, ionic_strength, z=0, A=0):
+        '''
+            returns the derivative value of the activity regarding the inoic strength (dgamma/dionic_strength)
+        '''
+        if hasattr(self, 'charge'):
+            z = self.charge
+        return afm.dgamma_dionicstrength(self.f_act_coef, actcoeff, ionic_strength)

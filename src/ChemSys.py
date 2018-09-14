@@ -198,16 +198,19 @@ class ChemSys (Database):
         Ionic_s=0
         for i in range(0, self.n_species):
             z = self.list_species[i].charge
-            Ionic_s = c[i]*z*z
+            Ionic_s = Ionic_s + c[i]*z*z
         Ionic_s = 0.5*Ionic_s
+        return Ionic_s
         
     def calculate_log_activity_coefficient(self, ionic_strength, ctemp):
         log_coef_a=np.zeros(self.n_species)
         for i in range(0, self.n_species):
-            if self.list_species[i] == 'H2O':
-                log_coef_a[i] = self.list_species[i].log_coefficient_activity(self, ionic_strength, c=np.delete(ctemp,i))
+            if self.list_species[i].name == 'H2O':
+                #log_coefficient_activity(self, ionic_strength, c=0, A=0, B = 0, a = 0, b = 0, z = 0)
+                cs=np.delete(ctemp,i)
+                log_coef_a[i] = self.list_species[i].log_coefficient_activity( ionic_strength, c = cs)
             else:
-                log_coef_a[i] = self.list_species[i].log_coefficient_activity(ionic_strength, A=self.B_activitypar, B = self.B_activitypar )
+                log_coef_a[i] = self.list_species[i].log_coefficient_activity(ionic_strength, A=self.A_activitypar, B = self.B_activitypar )
         return log_coef_a
     # In This function the component matrix U is calculated as steated by Steefel and MacQuarrie, 1996 or as it is the same stated by Saaltink et al., 1998  (equation 24) 
     # It is supposed to be obtained by means of a Gauss-Jordan elimination
@@ -218,13 +221,16 @@ class ChemSys (Database):
         '''
         S1, S2 = self.separte_S_into_S1_and_S2()
         # Create Identity
-        I = np.identity (self.n_species - self.n_reactions)
+        ne = self.n_species - self.n_reactions
+        I = np.identity (ne)
         # Use  Saaltink et al., 1998  (equation 24) 
         St = np.matmul(-S1.transpose(), np.linalg.inv(S2.transpose()))  # -S1t*inv(S2t)
         self.U = np.concatenate((I, St), 1)
         self.check_U_consistancy()
         # If there is charge the column of U must be zero
         self.charge_columns_0()
+        self.U1 = self.U[:, :ne].copy()
+        self.U2 = self.U[:, ne:].copy()
     
     def check_U_consistancy(self):
         '''
@@ -246,7 +252,15 @@ class ChemSys (Database):
     def log_speciation_secondaryspecies (self, c1_n, log_activity_coefficient, S_prima, log_K_prima, n_primery_species):
         log_actcoeff_1 = log_activity_coefficient[0:n_primery_species].copy()
         log_actcoeff_2 = log_activity_coefficient[n_primery_species:].copy()
-        log_c2 = np.matmul(S_prima, (np.log10(c1_n) + log_actcoeff_1 )) + log_K_prima - log_actcoeff_2
+        
+        log_activity_c1 = np.log10(c1_n) + log_actcoeff_1
+        # It must be taken into account that water is an exception, the log_activity_coefficient variable contains the activity coefficient of all the concentrations, except for water, where it contains the activity
+        # Therefore, water value of log_activity_c1 [water] = log_actcoeff_1 [water]
+        i_water = self.name_primary_species.index('H2O')
+        log_activity_c1[i_water] = log_actcoeff_1 [i_water]
+        
+        
+        log_c2 = np.matmul(S_prima, log_activity_c1) + log_K_prima - log_actcoeff_2
         return log_c2
     
     # Calculations
@@ -261,7 +275,7 @@ class ChemSys (Database):
         # Tolerance
         #tolerance = 1e-4
         # Initial guess c1 (c2 must also be inizialitated)
-        c = self.Instatiation_step(1)
+        c = self.instantiation_step(type_I = 0)
         nps = len(self.name_primary_species)
         c1_n = c[:nps].copy()
         c2_n0 = c[nps:].copy()
@@ -270,22 +284,22 @@ class ChemSys (Database):
         b = False        # True will mean that no solution has been found
         counter_iterations = 0;
         #max_n_iteration = 100;
-        S1, S2 = separte_S_into_S1_and_S2()
+        S1, S2 = self.separte_S_into_S1_and_S2()
         S_prima = -np.matmul(np.linalg.inv(S2),S1)
         log_K_prima = np.matmul(np.linalg.inv(S2), self.log_k_vector)
         while not b and counter_iterations < max_n_iterations:
             #update c1_n
             c1_n = c1_n + delta_c1
             # Compute c2, in order to do such think, compute I, activity, and then c2.
-            ctemp=np.concatenate(c1_n, c2_n0)
+            ctemp=np.concatenate((c1_n, c2_n0))
             ionic_strength = self.calculate_ionic_strength (ctemp)
-            log_activity_coefficient = self.calculate_log_activity_coefficient (ionic_strength)
+            log_activity_coefficient = self.calculate_log_activity_coefficient (ionic_strength, ctemp)
             log_c2_n1 = self.log_speciation_secondaryspecies (c1_n, log_activity_coefficient, S_prima, log_K_prima, nps)
             c2_n1 = 10**log_c2_n1
             #compute f
-            f = self.calculate_NR_function (c1_n, c2_n1)
+            f = self.calculate_NR_function_sa1 (c1_n, c2_n1)
             # compute df/dc1
-            df_dc1 = self.Jacobian_NR_function(c1_n,c2_n1)
+            df_dc1 = self.Jacobian_NR_function_sa1(c1_n,c2_n1, S_prima, log_activity_coefficient, ionic_strength)
             # delta_c = c_n+1 - c_n
             delta_c1 = -self.division_vector(f, df_dc1)
             # Converge?
@@ -295,13 +309,124 @@ class ChemSys (Database):
             else:
                 counter_iterations += 1
                 
+    def calculate_NR_function_sa1 (self, c1, c2):
+        '''
+            Calculates the Newton-Raphson equation of speciation algorithm1 which is
+            F=f(c_1 )=Uc-u=U_1 c_1+U_2 c_2-u
+        '''
+        # F=f(c_1 )=Uc-u=U_1 c_1+U_2 c_2-u
+        F = np.matmul(self.U, np.concatenate((c1, c2))) -self.u_comp_vec
+        return F
         
+    
+    def Jacobian_NR_function_sa1(self, c1,c2):
+        '''
+            Calculates the Jacobian Newton-Raphson equation of speciation algorithm1 which is
+            ∂f/(∂c_1 )=U_1+U_2  (∂c_2)/(∂c_1 )
+        '''
+        # ∂f/(∂c_1 )=U_1+U_2  (∂c_2)/(∂c_1 )
+        '''
+        '''
+        Dc2_dc1 = self.Calculate_Dc2_dc1(c1,c2) 
+        dF_dc1 = self.U1 + np.matmul(self.U2, Dc2_dc1)
+        return dF_dc1
+    
+    def Calculate_Dc2_dc1(self, c1, c2,  S_prima, log_activity_coefficient, ionic_strength):
+        '''
+            Calculates the derivative of the secondary species regarding the primary species
+            [1/c_2  I-(S_1^*)/γ_1   (∂γ_1)/∂μ  ∂μ/(∂c_2 )+I/γ_2   (∂γ_2)/∂μ  ∂μ/(∂c_2 )]  (∂c_2)/(∂c_1 )=S_1^*  1/c_1  I+(S_1^*)/γ_1   (∂γ_1)/∂μ  ∂μ/(∂c_1 )-I/γ_2   (∂γ_2)/∂μ  ∂μ/(∂c_1 )
+        '''
+        A = self.CalculatePartA_Dc2_dc1(c2,  S_prima, log_activity_coefficient, ionic_strength)
+        B = self.CalculatePartB_Dc2_dc1()
+        Dc2_dc1 = np.matmul(np.linalg.inv(A), B)
+        return Dc2_dc1
+    
+    def CalculatePartA_Dc2_dc1(self, c2, S_prima, log_activity_coefficient, ionic_strength):
+        '''
+            Calculates the right hand side of the equation stated in Calculate_Dc2_dc1 method, namely --> [1/c_2  I-(S_1^*)/γ_1   (∂γ_1)/∂μ  ∂μ/(∂c_2 )+I/γ_2   (∂γ_2)/∂μ  ∂μ/(∂c_2 )]
+        '''
+        #index_W = log_activity_coefficient.index('H2O')
+        #log_activity_coefficient = 1
+        n_primary_species = len(self.name_primary_species)
+        log_actcoeff_1 = log_activity_coefficient[0:n_primary_species].copy()
+        log_actcoeff_2 = log_activity_coefficient[n_primary_species:].copy()
+        # A = 1/c_2  I
+        inv_c2 = 1/c2
+        A = np.diag(inv_c2)
+        # B = (S_1^*)/γ_1   (∂γ_1)/∂μ  ∂μ/(∂c_2 )
+        # B1 = (S_1^*)/γ_1
+        inv_actcoeff1 = 1/np.power(10, log_actcoeff_1)
+        B1_0 = np.matmul(S_prima,np.diag(inv_actcoeff1))
+        # B1_1 = (∂γ_1)/∂μ 
+        B1_1 = self.J_act_coef_respect_ionicstrength (log_actcoeff_1, ionic_strength, 1)
+        #B1_2 = ∂μ/(∂c_2 )
+        B1_2 = self.vect_dionicstrength_dspecies(n_primary_species, 2)
         
+        B = np.matmul(B1_0,np.matmul(B1_1, B1_2))
+        #C = I/γ_2   (∂γ_2)/∂μ  ∂μ/(∂c_2 )
+        # C_0
+        inv_gamma2 = 1/log_actcoeff_2
+        C_0 = np.diag(inv_gamma2)
+        C_1 = self.J_act_coef_respect_ionicstrength (log_actcoeff_2, ionic_strength, 2)
+        C_2 = self.vect_dionicstrength_dspecies(len(self.name_secondary_species), 2)
+        C = np.matmul(C_0, np.matmul(C_1, C_2))
         
-    def Instantiation_step (self, type_I=1):
+        return A - B + C
+        
+    def vect_dionicstrength_dspecies(self, n_r, t):
+        '''
+            It calculates ∂μ/(∂c_2 ) = [∂μ/(∂c_2_1 )  ∂μ/(∂c_2_2 )   ∂μ/(∂c_2_3 )  ∂μ/(∂c_2_4 )   ∂μ/(∂c_2_5 )  ∂μ/(∂c_2_6 )]
+            And then it expands the first row by the number given in the other rows.
+            t is 0 for all species
+            t is 1 for primary species
+            t is 2 for secondary species
+            
+        '''
+        v_di_dc2=[]
+        if t == 0:
+            d = range(0, self.n_species)
+        elif t == 1:
+            d = range(0, len(self.name_primary_species))
+        elif t == 2:
+            d = range(len(self.name_primary_species), self.n_species)
+        else:
+            raise ValueError('Wrong t.')
+            
+        for i in d:
+            r = 0.5*self.list_species[i].charge()**2
+            v_di_dc2.append(r)
+        return np.tile(v_di_dc2, (n_r,1))
+        
+    def J_act_coef_respect_ionicstrength(self, log_actcoeff_1, ionic_strength, t):
+        # Assuming that self.list_species is order like self.name_primary_Species
+        '''
+            t is 0 for all species
+            t is 1 for primary species
+            t is 2 for secondary species
+        '''
+        v = []
+        if t == 0:
+            d = range(0, self.n_species)
+        elif t == 1:
+            d = range(0, len(self.name_primary_species))
+        elif t == 2:
+            d = range(len(self.name_primary_species), self.n_species)
+        else:
+            raise ValueError('Wrong t.')
+        
+        for i in d:
+            if self.name_primary_species[i] == 'H2O':
+                v.append(0)
+            else:
+                v.append(self.list_species[i].dgamma_dionicstrength(np.power(10, log_actcoeff_1[i]), ionic_strength, A=self.A_activitypar))
+        v = np.diag(v)
+        return v        
+
+    
+    def instantiation_step (self, type_I=1):
             if type_I == 0:
-                c_ini = np.ones(self.n_species)
-                #c_ini = np.array([55.50667,  1.227e-10, 1.227e-04, 3.388e-05, 8.415e-05, 8.312e-05, 5.565e-06, 1.134e-07, 2.248e-08, 1.475e-07])# for example 1
+                #c_ini = np.ones(self.n_species)*1e-3
+                c_ini = np.array([55.50667,  1.227e-10, 1.227e-04, 3.388e-05, 8.415e-05, 8.312e-05, 5.565e-06, 1.134e-07, 2.248e-08, 1.475e-07])# for example 1
                 c_ini = c_ini.transpose()
             elif type_I == 1:
                 c_ini = self.NewtonRaphson_noactivitycoefficient()
@@ -310,7 +435,7 @@ class ChemSys (Database):
             return c_ini
            
     def NewtonRapshon_noactivitycoefficient(self, tolerance = 1e-10, max_n_iterations = 100):
-        c_guess = self.Instantiation_step( type_I=0)
+        c_guess = self.instantiation_step( type_I=0)
         c_n = c_guess
         
         b = False        # True will mean that no solution has been found
