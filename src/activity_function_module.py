@@ -37,11 +37,10 @@ def log_Davies (ionic_strength, A, z):
 
 
 def dgamma_dionicstrength(f_act_coef, actcoeff, ionic_strength, z, A):
-    dgamma_dionicstrength = 0
     if f_act_coef == 'water':
         dgamma_dionicstrength = 0
     elif f_act_coef == 'Davis':
-        log_a = dgamma_dionicstrength_Davies (actcoeff, ionic_strength)
+        dgamma_dionicstrength = dgamma_dionicstrength_Davies (actcoeff, ionic_strength, z, A)
     else:
         raise ValueError('[activity_function_module] Function not find it.')   
     return dgamma_dionicstrength

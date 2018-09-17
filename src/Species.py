@@ -71,4 +71,4 @@ class Aq_Species (Species):
         '''
         if hasattr(self, 'charge'):
             z = self.charge
-        return afm.dgamma_dionicstrength(self.f_act_coef, actcoeff, ionic_strength)
+        return afm.dgamma_dionicstrength(self.f_act_coef, actcoeff, ionic_strength, z, A)

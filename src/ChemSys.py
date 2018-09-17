@@ -281,15 +281,14 @@ class ChemSys (Database):
         c2_n0 = c[nps:].copy()
         delta_c1 = np.zeros(nps);
         # start loop
-        b = False        # True will mean that no solution has been found
+        #b = False        # True will mean that no solution has been found
         counter_iterations = 0;
         #max_n_iteration = 100;
         S1, S2 = self.separte_S_into_S1_and_S2()
         S_prima = -np.matmul(np.linalg.inv(S2),S1)
         log_K_prima = np.matmul(np.linalg.inv(S2), self.log_k_vector)
-        while not b and counter_iterations < max_n_iterations:
-            #update c1_n
-            c1_n = c1_n + delta_c1
+        err = 1
+        while err>tolerance and counter_iterations < max_n_iterations:
             # Compute c2, in order to do such think, compute I, activity, and then c2.
             ctemp=np.concatenate((c1_n, c2_n0))
             ionic_strength = self.calculate_ionic_strength (ctemp)
@@ -301,13 +300,17 @@ class ChemSys (Database):
             # compute df/dc1
             df_dc1 = self.Jacobian_NR_function_sa1(c1_n,c2_n1, S_prima, log_activity_coefficient, ionic_strength)
             # delta_c = c_n+1 - c_n
-            delta_c1 = -self.division_vector(f, df_dc1)
-            # Converge?
-            b = delta_c < tolerance
-            if b == True:
-                break
-            else:
-                counter_iterations += 1
+            delta_c1 = np.linalg.solve(df_dc1,-f)
+            # next cn not higher than 0,005*abs(c)
+            c_n1 = np.maximum(c1_n+delta_c1, 0.005*abs(c1_n))
+            #error
+            err = max(abs(c_n1-c1_n));
+            #update
+            c1_n = c_n1;
+            counter_iterations += 1
+        c_n = np.concatenate((c1_n, c2_n1))
+        self.c = c_n
+        return c_n
                 
     def calculate_NR_function_sa1 (self, c1, c2):
         '''
@@ -319,7 +322,7 @@ class ChemSys (Database):
         return F
         
     
-    def Jacobian_NR_function_sa1(self, c1,c2):
+    def Jacobian_NR_function_sa1(self, c1, c2, S_prima, log_activity_coefficient, ionic_strength):
         '''
             Calculates the Jacobian Newton-Raphson equation of speciation algorithm1 which is
             ∂f/(∂c_1 )=U_1+U_2  (∂c_2)/(∂c_1 )
@@ -327,7 +330,7 @@ class ChemSys (Database):
         # ∂f/(∂c_1 )=U_1+U_2  (∂c_2)/(∂c_1 )
         '''
         '''
-        Dc2_dc1 = self.Calculate_Dc2_dc1(c1,c2) 
+        Dc2_dc1 = self.Calculate_Dc2_dc1(c1,c2,  S_prima, log_activity_coefficient, ionic_strength) 
         dF_dc1 = self.U1 + np.matmul(self.U2, Dc2_dc1)
         return dF_dc1
     
@@ -337,7 +340,7 @@ class ChemSys (Database):
             [1/c_2  I-(S_1^*)/γ_1   (∂γ_1)/∂μ  ∂μ/(∂c_2 )+I/γ_2   (∂γ_2)/∂μ  ∂μ/(∂c_2 )]  (∂c_2)/(∂c_1 )=S_1^*  1/c_1  I+(S_1^*)/γ_1   (∂γ_1)/∂μ  ∂μ/(∂c_1 )-I/γ_2   (∂γ_2)/∂μ  ∂μ/(∂c_1 )
         '''
         A = self.CalculatePartA_Dc2_dc1(c2,  S_prima, log_activity_coefficient, ionic_strength)
-        B = self.CalculatePartB_Dc2_dc1()
+        B = self.CalculatePartB_Dc2_dc1(c1, S_prima, log_activity_coefficient, ionic_strength)
         Dc2_dc1 = np.matmul(np.linalg.inv(A), B)
         return Dc2_dc1
     
@@ -358,20 +361,51 @@ class ChemSys (Database):
         inv_actcoeff1 = 1/np.power(10, log_actcoeff_1)
         B1_0 = np.matmul(S_prima,np.diag(inv_actcoeff1))
         # B1_1 = (∂γ_1)/∂μ 
-        B1_1 = self.J_act_coef_respect_ionicstrength (log_actcoeff_1, ionic_strength, 1)
+        B1_1 = self.J_act_coef_respect_ionicstrength (log_activity_coefficient, ionic_strength, 1)
         #B1_2 = ∂μ/(∂c_2 )
         B1_2 = self.vect_dionicstrength_dspecies(n_primary_species, 2)
         
         B = np.matmul(B1_0,np.matmul(B1_1, B1_2))
         #C = I/γ_2   (∂γ_2)/∂μ  ∂μ/(∂c_2 )
         # C_0
-        inv_gamma2 = 1/log_actcoeff_2
+        inv_gamma2 = 1/np.power(10, log_actcoeff_2)
         C_0 = np.diag(inv_gamma2)
-        C_1 = self.J_act_coef_respect_ionicstrength (log_actcoeff_2, ionic_strength, 2)
+        C_1 = self.J_act_coef_respect_ionicstrength (log_activity_coefficient, ionic_strength, 2)
         C_2 = self.vect_dionicstrength_dspecies(len(self.name_secondary_species), 2)
         C = np.matmul(C_0, np.matmul(C_1, C_2))
         
         return A - B + C
+    
+    def CalculatePartB_Dc2_dc1(self, c1, S_prima, log_activity_coefficient, ionic_strength):
+        '''
+            Calculates the right hand side of the equation stated in Calculate_Dc2_dc1 method, namely --> S_1^*  1/c_1  I+(S_1^*)/γ_1   (∂γ_1)/∂μ  ∂μ/(∂c_1 )-I/γ_2   (∂γ_2)/∂μ  ∂μ/(∂c_1 )
+        '''
+        n_primary_species = len(self.name_primary_species)
+        log_actcoeff_1 = log_activity_coefficient[0:n_primary_species].copy()
+        log_actcoeff_2 = log_activity_coefficient[n_primary_species:].copy()
+        # S_1^*  1/c_1  I
+        inv_c1 = 1/c1
+        A = np.diag(inv_c1)
+        A = np.matmul(S_prima, A)
+        
+        # (S_1^*)/γ_1   (∂γ_1)/∂μ  ∂μ/(∂c_1 )
+        inv_actcoeff1 = 1/np.power(10, log_actcoeff_1)
+        B1_0 = np.matmul(S_prima,np.diag(inv_actcoeff1))
+        # B1_1 = (∂γ_1)/∂μ 
+        B1_1 = self.J_act_coef_respect_ionicstrength (log_activity_coefficient, ionic_strength, 1)
+        #B1_2 = ∂μ/(∂c_1 )
+        B1_2 = self.vect_dionicstrength_dspecies(n_primary_species, 1)
+        
+        B = np.matmul(B1_0,np.matmul(B1_1, B1_2))
+        #C = I/γ_2   (∂γ_2)/∂μ  ∂μ/(∂c_2 )
+        # C_0
+        inv_gamma2 = 1/np.power(10, log_actcoeff_2)
+        C_0 = np.diag(inv_gamma2)
+        C_1 = self.J_act_coef_respect_ionicstrength (log_activity_coefficient, ionic_strength, 2)
+        C_2 = self.vect_dionicstrength_dspecies(len(self.name_secondary_species), 1)
+        C = np.matmul(C_0, np.matmul(C_1, C_2))
+        
+        return A+B-C
         
     def vect_dionicstrength_dspecies(self, n_r, t):
         '''
@@ -393,11 +427,11 @@ class ChemSys (Database):
             raise ValueError('Wrong t.')
             
         for i in d:
-            r = 0.5*self.list_species[i].charge()**2
+            r = 0.5*self.list_species[i].charge**2
             v_di_dc2.append(r)
         return np.tile(v_di_dc2, (n_r,1))
         
-    def J_act_coef_respect_ionicstrength(self, log_actcoeff_1, ionic_strength, t):
+    def J_act_coef_respect_ionicstrength(self, log_actcoeff, ionic_strength, t):
         # Assuming that self.list_species is order like self.name_primary_Species
         '''
             t is 0 for all species
@@ -415,18 +449,18 @@ class ChemSys (Database):
             raise ValueError('Wrong t.')
         
         for i in d:
-            if self.name_primary_species[i] == 'H2O':
+            if self.list_species[i].name == 'H2O':
                 v.append(0)
             else:
-                v.append(self.list_species[i].dgamma_dionicstrength(np.power(10, log_actcoeff_1[i]), ionic_strength, A=self.A_activitypar))
+                v.append(self.list_species[i].dgamma_dionicstrength(np.power(10, log_actcoeff[i]), ionic_strength, A=self.A_activitypar))
         v = np.diag(v)
         return v        
 
     
     def instantiation_step (self, type_I=1):
             if type_I == 0:
-                #c_ini = np.ones(self.n_species)*1e-3
-                c_ini = np.array([55.50667,  1.227e-10, 1.227e-04, 3.388e-05, 8.415e-05, 8.312e-05, 5.565e-06, 1.134e-07, 2.248e-08, 1.475e-07])# for example 1
+                c_ini = np.ones(self.n_species)*1e-3
+                #c_ini = np.array([55.50667,  1.227e-10, 1.227e-04, 3.388e-05, 8.415e-05, 8.312e-05, 5.565e-06, 1.134e-07, 2.248e-08, 1.475e-07])# for example 1
                 c_ini = c_ini.transpose()
             elif type_I == 1:
                 c_ini = self.NewtonRaphson_noactivitycoefficient()
