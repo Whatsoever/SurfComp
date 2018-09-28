@@ -1,12 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Sep  4 10:18:43 2018
-
-@author: DaniJ
-"""
-
-# -*- coding: utf-8 -*-
-"""
 Created on Wed Aug  1 10:25:11 2018
 
 @author: DaniJ
@@ -19,7 +12,7 @@ from ChemSys import ChemSys
 from creating_databaseObject_from_text_type1 import *
 from Read_input_file_type1 import *
 # Read database
-database = 'Type1_Database.txt'
+database = 'Type2_Database.txt'
 # Instantiating database
 Species_list, Reaction_list, primary_species_list, secondary_species_list = creating_databaseObject_from_text_type1 (database)
 
@@ -38,15 +31,31 @@ D.create_S()
 
 
 #
-# Reading input
 #
-infile = 'Type1_Input.txt'
+# Reading input
+infile = 'Type2_Input.txt'
 # Instantiating input
 list_prim, list_val = Read_input_file_type1 (infile)
 C = ChemSys( list_prim, list_val, D)
 C.calculate_U_f1()
 # Calculating Speciation
-c = C.NewtonRapshon_noactivitycoefficient()
-print(c)
+#C.calculate_speciation (1)
 #print(np.matmul(C.U, C.S.transpose()))
 # Pre-processing Results
+
+#c = C.NewtonRapshon_noactivitycoefficient()
+
+#c = C.speciation_algorithm1()
+#C.print_speciation()
+
+
+#c = C.NewtonRapshon_noactivitycoefficient(tolerance = 1e-10)
+
+#c = C.speciation_algorithm1()
+#C.print_speciation()
+
+
+c = C.NewtonRaphson_noactivitycoefficient(tolerance = 1e-12)
+
+#c = C.speciation_algorithm1()
+C.print_speciation()

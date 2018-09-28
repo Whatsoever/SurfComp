@@ -1,0 +1,12 @@
+Solution
+# Concentrations which are supposed to be mol/L
+
+H2O	55.5555556		# Maybe define in other form or even not define, must be discussed
+H+	6.0256e-05		# Actually pH = -log(ah+),  so if pH is given no H+ need, and also what would be given would be ah, not concentration of the basis, must be discussed
+Ca+2	412.3e-7
+Mg+2		3718.8e-7 
+Cl-		19353.0e-7
+K+		342.1e-7 
+Mn+2	 	0.0002e-7
+Na+	 	10768.0e-7
+H4SiO4	 	4.28e-7

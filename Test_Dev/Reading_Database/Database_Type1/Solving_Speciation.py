@@ -45,5 +45,5 @@ C.calculate_U_f1()
 
 #c = C.NewtonRapshon_noactivitycoefficient()
 
-c = C.speciation_algorithm1()
+c = C.speciation_algorithm1(tolerance = 1e-10, type_I = 1)
 C.print_speciation()

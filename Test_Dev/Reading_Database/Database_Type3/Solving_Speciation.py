@@ -12,7 +12,7 @@ from ChemSys import ChemSys
 from creating_databaseObject_from_text_type1 import *
 from Read_input_file_type1 import *
 # Read database
-database = 'Type1_Database.txt'
+database = 'Type3_Database.txt'
 # Instantiating database
 Species_list, Reaction_list, primary_species_list, secondary_species_list = creating_databaseObject_from_text_type1 (database)
 
@@ -33,7 +33,7 @@ D.create_S()
 #
 #
 # Reading input
-infile = 'Type1_Input.txt'
+infile = 'Type3_Input.txt'
 # Instantiating input
 list_prim, list_val = Read_input_file_type1 (infile)
 C = ChemSys( list_prim, list_val, D)
@@ -42,6 +42,10 @@ C.calculate_U_f1()
 #C.calculate_speciation (1)
 #print(np.matmul(C.U, C.S.transpose()))
 # Pre-processing Results
-
-c = C.NewtonRapshon_noactivitycoefficient()
+#c = C.NewtonRapshon_noactivitycoefficient( )
+#c = C.NewtonRapshon_noactivitycoefficient( tolerance = 1e-7, max_n_iterations = 150)
+c = C.speciation_algorithm1( tolerance = 1e-12)
 C.print_speciation()
+
+C.print_ionic_strength()
+C.print_activity()

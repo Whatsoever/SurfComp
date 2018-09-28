@@ -3,13 +3,16 @@
 
 Primary_Species
 
-# Name		# Charge		# MolarWeight	   	#a (Drawn from Pflotran hanford.dat)  #b	
-H2O		0			18.0153			3				
-H+		1			1.0079			9
-Ca+2		2			40.08			6
-CO3-2		-2			12.0111			4.5		
-Mg+2		2			24.312			8		
-Cl-		-1			35.453			3
+# Name		# Charge		# MolarWeight		
+H2O		0			18.0153			
+H+		1			1.0079
+Ca+2		2			40.08
+Mg+2		2			24.312
+Cl-		-1			35.453
+K+		1			39.102
+Mn+2	 	2			54.938
+Na+	 	1			22.9898
+H4SiO4	 	0			28.0843
 
 # Notes: 
 #       1) I am adding water because I am not sure if it is significant for pH speciation or future calculations where Surface plays a role
@@ -23,7 +26,7 @@ Cl-		-1			35.453			3
 Secondary_Species
 # Name	#Charge 	#Reaction ('Primary Species' 'Stoichiometric' ....)
 OH-         -1 		H2O	-1	H+	1
--log_k	     -14
+-log_k		-14
 
 # Notes:
 #  1) First the secondary species names, and later the charge (which might be removed by a function which translates the strings into values),
@@ -32,35 +35,31 @@ OH-         -1 		H2O	-1	H+	1
 #  2) The line -log_k states the log value of the defined reaction. (Like Phreeqc I suposse that log_K is at 25°C)
 #  3) More lines can be written, behind to add parameters. (e.g. Parameter for temperature and the log_K) <-- must be discussed.
 
-HCO3- 	-1	CO3-2 -1  H+ -1
--log_k	10.329
--a	4
--b	0
 
-MgCO3   0	CO3-2	-1  Mg+2 -1
--log_k  2.98
--a	3
-
-CaCO3   0	Ca+2 -1  CO3-2 -1
--log_k 3.224
--a	3
-
-MgHCO3+   1	Mg+2  -1  H+  -1      CO3-2	-1
--log_k 11.399
--a	4
-
-CaHCO3+   1	Ca+2 -1  CO3-2 -1  H+  -1
--log_k	11.435
--a	4
-
-CO2  	0	CO3-2  -1  H+  -2   H2O   1
--log_k	16.681
--a	6			# Value from Jacob Kielland, 1937
 
 CaOH+  1	Ca+2  -1   H2O  -1   H+  1
 -log_k	-12.78
--a	5			# Made up value
 
 MgOH+   1	Mg+2  -1   H2O  -1   H+  1
 -log_k	-11.44
--a	4
+
+MnCl+  1 	Mn+2	-1	Cl- -1
+-log_k	0.61
+
+MnCl2  0         Mn+2	-1	Cl- -2
+-log_k	0.25
+
+MnCl3-  -1         Mn+2	-1	Cl- -3
+-log_k	-0.31
+
+Mn(OH)3- -1	H+	3	H2O	-3	Mn+2	-1
+-log_k  -34.8
+
+NaOH	0	Na+	-1	H2O  -1   H+  1
+-log_k	-24
+
+H3SiO4-	-1	H+	1	H4SiO4	-1
+-log_k	-9.83
+
+H2SiO4-2	-2	H+	2	H4SiO4	-1
+-log_k	-23

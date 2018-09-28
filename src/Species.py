@@ -44,6 +44,10 @@ class Aq_Species (Species):
         self.devionsizepar = b
         
     def Set_f_activity_coefficient (self, String_name_func):
+        '''
+        Davis, Deby-Huckel
+        '''
+        
         self.f_act_coef = String_name_func
         
     #Getters
