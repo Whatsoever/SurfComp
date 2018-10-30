@@ -476,13 +476,13 @@ class ChemSys (Database):
                 raise ValueError('Not algorithm for instantiationwith these number.')
             return c_ini
            
-    def NewtonRaphson_noactivitycoefficient(self, tolerance = 1e-6, max_n_iterations = 100):
+    def speciation_noactivitycoefficient(self, tolerance = 1e-6, max_n_iterations = 100):
         c_guess = self.instantiation_step( type_I=0)
         c_n = c_guess
         
-        counter_iterations = 0;
+        counter_iterations = 0
         #max_n_iteration = 100;
-        err= tolerance+1
+        err = tolerance+1
         
         while err>tolerance and counter_iterations < max_n_iterations:
             # Calculate F; F = [U*c-u; S*log(c)-logK];
@@ -497,7 +497,7 @@ class ChemSys (Database):
             # In case a value is negative.
             c_n1 = np.maximum(c_n+dc, 5e-3*abs(c_n))            
             #error
-            err = max(abs(c_n1-c_n));
+            err = max(abs(c_n1-c_n))
            #print(err)            
             #update
             c_n = c_n1;
@@ -507,10 +507,67 @@ class ChemSys (Database):
         self.c = c_n
         return c_n
     
+    def speciation_noactivitycoefficient_Westall1980(self, tolerance = 1e-6, max_iterations = 100):
+        '''
+            The algorithm implementation, as you can already guess, is based on the work of Westall (1980)
+            The paper is called "Chemical equilibrium Including Adsorption on Charged Surfaces"
+            Pages 33-to-37
+            it is similar to the one given by Craig M.Bethke
+        '''
+        c_guess = self.instantiation_step( type_I=0)
+        c_n = c_guess
+        nps = len(self.name_primary_species)
+        S1, S2 = self.separte_S_into_S1_and_S2()
+        
+        counter_iterations = 0
+        err = tolerance + 1
+        while err>tolerance and counter_iterations < max_iterations:
+            
+            # Calculate f or better said in this specific case Y
+            Y = self.U.dot(c_n) - self.u_comp_vec
+            # Calculate Z
+            Z = self.Jacobian_Speciation_Westall1980(c_n, nps)
+            # Calculating the diff, Delta_X
+            # In the paper Delta_X is X_old - X_new or as they called X_original - X_improved.
+            # I am writing X_new- X-old, hence I use -Y instead of Y.
+            delta_X = np.linalg.solve(Z,-Y)
+            
+            # The error will be equal to the maximum increment
+            err = max(abs(delta_X))
+            
+            # Relaxation factor borrow from Craig M.Bethke to avoid negative values
+            max_1 = 1
+            max_2 =np.amax(-2*np.multiply(delta_X, 1/c_n[0:nps]))
+            Max_f = np.amax([max_1, max_2])
+            Del_mul = 1/Max_f
+            
+            
+            # Update
+            c_n[0:nps] = c_n[0:nps] + Del_mul*delta_X   # Update primary species
+            log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_n[0:nps])))      # Update secondary
+            c_n[nps:] =10**log_c2
+        if counter_iterations >= max_iterations:
+            raise ValueError('Max number of iterations surpassed.')
+        self.c = c_n
+        return c_n
+    
+    def Jacobian_Speciation_Westall1980(self, C, n_primaryspecies):
+        '''
+            The jacobian matrix following an implementation based on the algorithm of  Westall (1980) 
+            "Chemical equilibrium Including Adsorption on Charged Surfaces"
+             Pages 33-to-37
+             It is assumed that C is order first with the primary species and then with the secondary species such as C = [C1 C2]
+        '''
+        Z = np.zeros((n_primaryspecies, n_primaryspecies))
+        for i in range(0, n_primaryspecies):
+            for j in range(0, n_primaryspecies):
+                Z[i,j]= np.matmul(np.multiply(self.U[i,:], self.U[j,:]), (C/C[j]))
+        return Z
+    
     
     def speciation_algorithm2_reduced_problem (self, tolerance = 1e-6, max_n_iterations = 100):
         '''
-            These algortihm is inspired by Geochemical and Biogeochemical reaction modeling from Craig M.Bethke
+            These algortihm implementation is based on Geochemical and Biogeochemical reaction modeling from Craig M.Bethke
         '''
         # Check that water is on the database as primary species and has the first possition
         # So far, for simplicity I leave the thing with the H2O like that but it can be changed.

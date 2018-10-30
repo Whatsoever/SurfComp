@@ -43,19 +43,23 @@ C.calculate_U_f1()
 #print(np.matmul(C.U, C.S.transpose()))
 # Pre-processing Results
 
-#c = C.NewtonRapshon_noactivitycoefficient()
+#c = C.speciation_noactivitycoefficient()
 
 #c = C.speciation_algorithm1()
 #C.print_speciation()
 
 
-#c = C.NewtonRapshon_noactivitycoefficient(tolerance = 1e-10)
+#c = C.speciation_noactivitycoefficient(tolerance = 1e-10)
 
 #c = C.speciation_algorithm1()
 #C.print_speciation()
 
 
-c = C.NewtonRaphson_noactivitycoefficient(tolerance = 1e-12)
+c = C.speciation_noactivitycoefficient(tolerance = 1e-12)
 
-#c = C.speciation_algorithm1()
-C.print_speciation()
+c2 = C.speciation_noactivitycoefficient_Westall1980(tolerance = 1e-12)
+
+#C.print_speciation()
+
+print(c)
+print(c2)

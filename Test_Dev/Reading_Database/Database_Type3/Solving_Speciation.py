@@ -42,8 +42,8 @@ C.calculate_U_f1()
 #C.calculate_speciation (1)
 #print(np.matmul(C.U, C.S.transpose()))
 # Pre-processing Results
-#c = C.NewtonRapshon_noactivitycoefficient( )
-#c = C.NewtonRapshon_noactivitycoefficient( tolerance = 1e-7, max_n_iterations = 150)
+#c = C.speciation_noactivitycoefficient( )
+#c = C.speciation_noactivitycoefficient( tolerance = 1e-7, max_n_iterations = 150)
 c = C.speciation_algorithm1( tolerance = 1e-12)
 C.print_speciation()
 
