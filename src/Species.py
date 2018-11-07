@@ -76,3 +76,20 @@ class Aq_Species (Species):
         if hasattr(self, 'charge'):
             z = self.charge
         return afm.dgamma_dionicstrength(self.f_act_coef, actcoeff, ionic_strength, z, A)
+    
+# Surface Species (Surf_species) is a daughter class of Species
+        
+class Surf_species (Species):
+    # Constructor
+    
+    # Type
+    def set_type_sorption (self, type_sorpt):
+        '''
+            Sets the type of sorption reaction to take into account:
+                - Non-electrostatic []
+                - Constant capacity [Schindler et al. (1976)]
+                - diffuse_layer [Dzombak and Morel (1990)]
+                - three layer exchange [Davies and Leckie (1978)]
+        '''
+        self.type_sorption = type_sorpt
+    # 

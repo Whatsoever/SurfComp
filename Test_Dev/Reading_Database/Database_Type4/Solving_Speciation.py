@@ -45,3 +45,4 @@ C.calculate_U_f1()
 
 c = C.speciation_algorithm2_reduced_problem()
 C.print_speciation()
+C.calculate_ionic_strength(c)

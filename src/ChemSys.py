@@ -204,8 +204,9 @@ class ChemSys (Database):
         '''
         Ionic_s=0
         for i in range(0, self.n_species):
-            z = self.list_species[i].charge
-            Ionic_s = Ionic_s + c[i]*z*z
+           # if type(self.list_species[i]) == Aq_Species:
+           z = self.list_species[i].charge
+           Ionic_s = Ionic_s + c[i]*z*z
         Ionic_s = 0.5*Ionic_s
         return Ionic_s
         
