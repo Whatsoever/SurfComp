@@ -1,0 +1,7 @@
+Solution
+# Concentrations which are supposed to be mol/L
+
+H+	1e-8		# Actually pH = -log(ah+),  so if pH is given no H+ need, and also what would be given would be ah, not concentration of the basis, must be discussed
+Na+ 	8.436e-5
+Cl- 	8.330e-5
+AsO4-3 	0.025e-6

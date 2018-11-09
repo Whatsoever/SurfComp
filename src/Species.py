@@ -81,7 +81,10 @@ class Aq_Species (Species):
         
 class Surf_species (Species):
     # Constructor
-    
+    # Constructor
+    def __init__(self, name):
+        '''Sets the inputted parameter name (e.g 'SurfOH', ...) into the property name.'''
+        Species.__init__(self, name)
     # Type
     def set_type_sorption (self, type_sorpt):
         '''

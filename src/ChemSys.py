@@ -472,7 +472,7 @@ class ChemSys (Database):
                 #c_ini = np.array([55.50667,  1.227e-10, 1.227e-04, 3.388e-05, 8.415e-05, 8.312e-05, 5.565e-06, 1.134e-07, 2.248e-08, 1.475e-07])# for example 1
                 c_ini = c_ini.transpose()
             elif type_I == 1:
-                c_ini = self.NewtonRaphson_noactivitycoefficient()
+                c_ini = self.speciation_noactivitycoefficient()
             else:
                 raise ValueError('Not algorithm for instantiationwith these number.')
             return c_ini
