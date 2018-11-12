@@ -54,18 +54,19 @@ Surface_Primary
 SurfOH
 
 Surface_Secondary
+# Name	#Stochiometric 	#Reaction ('Primary Species' 'Stoichiometric' ....)
 
-SurfOH2+	H+	-1	SurfOH	-1
+SurfOH2+	1	H+	-1	SurfOH	-1
 -log_k 7.29
 
-SurfO-		H+	1	SurfOH	-1
+SurfO-		1	H+	1	SurfOH	-1
 -log_k -8.93
 
-SurfH2AsO4	OH-	1	AsO4-3 -1	H+	-2	SurfOH	-1
+SurfH2AsO4	1	OH-	1	AsO4-3 -1	H+	-2	SurfOH	-1
 -log_k 29.31
 
-SurfHAsO4-	OH-	1	H+	-1	AsO4-3	-1
+SurfHAsO4-	1	OH-	1	H+	-1	AsO4-3	-1
 -log_k 23.51
 
-SurfOHAsO4-3	AsO4-3	-1	SurfOH	-1
+SurfOHAsO4-3	1	AsO4-3	-1	SurfOH	-1
 -log_k 10.58

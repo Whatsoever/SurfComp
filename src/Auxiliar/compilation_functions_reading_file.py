@@ -5,7 +5,7 @@ Created on Fri Nov  9 12:06:04 2018
 @author: DaniJ
 """
 from Species import *
-
+from Reaction import *
 
 # Searching functions
 
@@ -47,14 +47,14 @@ def find_last_index(list_text, min_point, possible_ends_list):
 
 # Functions for reading blocks (i.e. Primary Species, Secondary Species, etc) and outputing parameters
 
-def read_block_PrimarySpecies (list_datablock_primary):
+def read_block_Primary_Species (list_datablock_primary):
     # initialization of variables to return
     names_primary_species = []
     List_Aq_classes_primary_species = []
     # variables for loop
     line_counter = 0
     while line_counter < len(list_datablock_primary):
-        temp =list_datablock_primary[line_counter].strip() 
+        temp = list_datablock_primary[line_counter].strip() 
         if temp == '' or temp[0] == '#' or temp == 'Primary_Species':
             line_counter += 1
         else:
@@ -80,5 +80,96 @@ def read_block_PrimarySpecies (list_datablock_primary):
             line_counter += 1
             
     return names_primary_species, List_Aq_classes_primary_species
-    
 
+def read_block_Secondary_Species (list_datablock_secondary): 
+    # initialization of variables to return
+    names_secondary_species = []
+    List_Aq_classes_secondary_species = []
+    List_aq_reactions = []
+    # variables for loop
+    line_counter = 0
+    while line_counter < len(list_datablock_secondary):
+        temp = list_datablock_secondary[line_counter].strip() 
+        if temp == '' or temp[0] == '#' or temp == 'Secondary_Species':
+            line_counter += 1
+        else:
+            words_line = temp.split()
+            if words_line[0] == '-log_k':
+                R.set_log_k(float(words_line[1]))
+                List_aq_reactions.append(R)
+                line_counter +=1
+            elif words_line[0] == '-a':
+                S.set_ionsizeparameter(float(words_line[1]))
+                line_counter += 1
+            elif words_line[0] == '-b':
+                S.set_deviationionsizeparameter(float(words_line[1]))
+                line_counter += 1
+            else:
+                R = Reaction()
+                dic_reaction = {}
+                for i in range(0, len(words_line), 2):
+                    if i == 0:
+                        dic_reaction[words_line[i]] = int(1)
+                    else:
+                        dic_reaction[words_line[i]] = int(words_line[i+1])
+                R.set_reaction(dic_reaction)
+                S = Aq_Species(words_line[0])
+                names_secondary_species.append(words_line[0])
+                S.set_charge (int(words_line[1]))
+                List_Aq_classes_secondary_species.append(S)
+                line_counter += 1
+    return names_secondary_species,List_Aq_classes_secondary_species, List_aq_reactions 
+
+
+def read_block_Surface_Primary (list_datablock_surfpri): 
+    # initialization of variables to return
+    names_primary_sorptspecies = []
+    List_Sorpt_classes_primary_species = []
+    # variables for loop
+    line_counter = 0
+    while line_counter < len(list_datablock_surfpri):
+       temp = list_datablock_surfpri[line_counter].strip() 
+       if temp == '' or temp[0] == '#' or temp == 'Surface_Primary':
+           line_counter += 1 
+       else:
+           words_line = temp.split()
+           S = Surf_species(words_line[0])
+           names_primary_sorptspecies.append(words_line[0])
+           List_Sorpt_classes_primary_species.append(S)
+           line_counter += 1 
+        
+    return names_primary_sorptspecies, List_Sorpt_classes_primary_species
+
+
+def read_block_Surface_Secondary (list_datablock_surfsec):    
+    # initialization of variables to return
+    names_sorption_secondary_species = []
+    List_Sorption_secondary_species = []
+    List_sorption_reactions = []
+    # variables for loop
+    line_counter = 0
+    while line_counter < len(list_datablock_surfsec):
+        temp = list_datablock_surfsec[line_counter].strip() 
+        if temp == '' or temp[0] == '#' or temp == 'Surface_Secondary':
+            line_counter += 1
+        else:
+            words_line = temp.split()
+            if words_line[0] == '-log_k':
+                R.set_log_k(float(words_line[1]))
+                List_sorption_reactions.append(R)
+                line_counter +=1
+            else:
+                R = Reaction()
+                dic_reaction = {}
+                for i in range(0, len(words_line), 2):
+                    if i == 0:
+                        dic_reaction[words_line[i]] = int(1)
+                    else:
+                        dic_reaction[words_line[i]] = int(words_line[i+1])
+                R.set_reaction(dic_reaction)
+                S = Surf_species(words_line[0])
+                names_sorption_secondary_species.append(words_line[0])
+                List_Sorption_secondary_species.append(S)
+                line_counter += 1    
+      
+    return names_sorption_secondary_species, List_Sorption_secondary_species, List_sorption_reactions

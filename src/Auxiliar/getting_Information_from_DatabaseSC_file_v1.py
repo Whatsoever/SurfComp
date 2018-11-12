@@ -30,11 +30,13 @@ def getting_Information_from_DatabaseSC_file_v1 (text):
     [s_index_aq_pri, end_index_aq_pri] = cfrf.find_Indices_Aqueous_PrimaryBlock(lines)
     [s_index_aq_sec, end_index_aq_sec] = cfrf.find_Indices_Aqueous_SecondaryBlock(lines)
     [s_index_sorpt_pri, end_index_sorpt_pri] = cfrf.find_Indices_Sorption_PrimaryBlock(lines)
-    [s_index_sorpt_sec, end_index_sorpt_sec] = cfrf.find_Indices_Sorption_PrimaryBlock(lines)
+    [s_index_sorpt_sec, end_index_sorpt_sec] = cfrf.find_Indices_Sorption_SecondaryBlock(lines)
     
     # filling 
-    names_aqueous_primary_species, Aq_Species_list= cfrf.read_block_PrimarySpecies (lines[s_index_aq_pri:end_index_aq_pri])   
-    names_aqueous_secondary_species, Aq_Species_list = cfrf.read_block_PrimarySpecies (lines[s_index_aq_pri:end_index_aq_pri]) 
+    names_aqueous_primary_species, Aq_Species_list_pri= cfrf.read_block_Primary_Species (lines[s_index_aq_pri:end_index_aq_pri])   
+    names_aqueous_secondary_species, Aq_Species_list_sec, Aq_Reaction_list = cfrf.read_block_Secondary_Species (lines[s_index_aq_sec:end_index_aq_sec]) 
+    names_sorption_primary_species, Sorp_Species_list_pri = cfrf.read_block_Surface_Primary(lines[s_index_sorpt_pri:end_index_sorpt_pri])
+    names_sorption_secondary_species, Sorpt_Species_list_sec, Sorpt_Reaction_list = cfrf.read_block_Surface_Secondary (lines[s_index_sorpt_sec:end_index_sorpt_sec]) 
     
-    return []
+    return names_aqueous_primary_species, names_aqueous_secondary_species, names_sorption_primary_species, names_sorption_secondary_species, Aq_Species_list_pri, Aq_Species_list_sec, Sorp_Species_list_pri, Sorp_Species_list_sec, Aq_Reaction_list, Sorpt_Reaction_list
     

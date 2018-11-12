@@ -57,8 +57,8 @@ print(c2)
 #######################################   FROM HERE STARTS THE SORPTION PART ##########################################################################################
 
 # Read database
-database = 'Type5_Database_SC.txt'
+database_file = 'Type5_Database_SC.txt'
 # Instantiating database
-dumm = getting_Information_from_DatabaseSC_file_v1 (database)
-
+n_aq_sp_pri, n_aq_sp_sec, n_sorpt_sp_pri, n_sorpt_sp_sec, Aq_sp_list_pri, Aq_sp_list_sec, Sorp_sp_list_pri, Sorp_sp_list_sec, Aq_list_react, Sorp_list_react = getting_Information_from_DatabaseSC_file_v1 (database_file)
+#
 DS = Database_SC()
