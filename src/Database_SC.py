@@ -26,6 +26,15 @@ class Database_SC (Parent):
                 list_sorpt_sec_sp
                 list_aq_reactions               e.g. List of aqueous reactions
                 list_sorpt_reactions
+                pseudoS_names_columns           e.g. A list of the species in the column of the pseudoS matrix such as (following the order): names_aq_pri_sp + names_sorpt_pri_sp + names_aq_sec_sp + names_sorpt_sec_sp
+                pseudoS_length_columns          length of the columns of the pseudoS matrix that should be equal to the length of the species in the columns given by pseudoS_names_columns
+                pseudoS_length_rows             length of the rows in the pseudoS matrix which should be equal to the number of secondary aqueous and sorption species or the number of aqueous + sorption reactions
+                pseudoS                         e.g Stoichiometric matrix without the unknown potential (This part is keep apart because is problem dependent).
+                                                     Positives values in the Stoichiometric matrix mean products, negative values mean reactants
+                log_k_vector                    e.g. vector of log(K), the K is supossed to be define by K = products/reactants      In the case of sorptions, K is the one given by chemistry and not electrostatic forces.
+                                                     The order is electrostatic aqueous reactions then sorption constant
+                charge_vector                   e.g. vector of the charge of the aqueous species (z) following the order of first primary species then secondary
+                gfw_vector                      e.g. vector of the values for gram formula weight of the aqueous species following the order of first primary species then secondary. Namely, mol/gram
             methods:
                 set_names_aq_primary_species (names_aq_pri_sp):
                 set_names_aq_secondary_species (names_aq_sec_sp):
@@ -37,7 +46,14 @@ class Database_SC (Parent):
                 set_sorpt_list_sec_class (list_sorpt_sec_sp):
                 set_aq_reactions_list (list_aq_reactions):
                 set_sorpt_reactions_list (list_sorpt_reactions):
-                    
+                create_pseudo_S    
+                check_Srows_linear_independent
+                check_consistency_species
+                forloop_check_names
+                check_main_attributes_defined
+                create_log_k_vector
+                create_charge_vector
+                create_gfw_vector
     '''
     # Constructor
     def __init__(self):
