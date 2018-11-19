@@ -62,3 +62,17 @@ database_file = 'Type5_Database_SC.txt'
 n_aq_sp_pri, n_aq_sp_sec, n_sorpt_sp_pri, n_sorpt_sp_sec, Aq_sp_list_pri, Aq_sp_list_sec, Sorp_sp_list_pri, Sorp_sp_list_sec, Aq_list_react, Sorp_list_react = getting_Information_from_DatabaseSC_file_v1 (database_file)
 #
 DS = Database_SC()
+DS.set_names_aq_primary_species ( n_aq_sp_pri)
+DS.set_names_aq_secondary_species ( n_aq_sp_sec)
+DS.set_names_sorpt_primary_species (n_sorpt_sp_pri)
+DS.set_names_sorpt_secondary_species (n_sorpt_sp_sec)
+DS.set_aq_list_pri_class (Aq_sp_list_pri)
+DS.set_aq_list_sec_class (Aq_sp_list_sec)
+DS.set_sorpt_list_pri_class (Sorp_sp_list_pri)
+DS.set_sorpt_list_sec_class (Sorp_sp_list_sec)
+DS.set_aq_reactions_list (Aq_list_react)
+DS.set_sorpt_reactions_list (Sorp_list_react)
+
+DS.create_pseudo_S()
+
+print(DS.pseudoS)

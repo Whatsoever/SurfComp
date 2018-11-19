@@ -38,5 +38,5 @@ def getting_Information_from_DatabaseSC_file_v1 (text):
     names_sorption_primary_species, Sorp_Species_list_pri = cfrf.read_block_Surface_Primary(lines[s_index_sorpt_pri:end_index_sorpt_pri])
     names_sorption_secondary_species, Sorpt_Species_list_sec, Sorpt_Reaction_list = cfrf.read_block_Surface_Secondary (lines[s_index_sorpt_sec:end_index_sorpt_sec]) 
     
-    return names_aqueous_primary_species, names_aqueous_secondary_species, names_sorption_primary_species, names_sorption_secondary_species, Aq_Species_list_pri, Aq_Species_list_sec, Sorp_Species_list_pri, Sorp_Species_list_sec, Aq_Reaction_list, Sorpt_Reaction_list
+    return names_aqueous_primary_species, names_aqueous_secondary_species, names_sorption_primary_species, names_sorption_secondary_species, Aq_Species_list_pri, Aq_Species_list_sec, Sorp_Species_list_pri, Sorpt_Species_list_sec, Aq_Reaction_list, Sorpt_Reaction_list
     
