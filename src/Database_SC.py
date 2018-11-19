@@ -161,3 +161,28 @@ class Database_SC (Parent):
         assert hasattr(self, 'list_aq_reactions'), 'list_aq_reactions has not been defined.'
         assert hasattr(self, 'list_sorpt_reactions'), 'list_sorpt_reactions has not been defined.'
         return None
+    
+    # Other things that can be created, and can be interesting or useful
+    def create_log_k_vector (self):
+        '''Creates a list of the log_k vectors'''
+        self.log_k_vector = []
+        for i in range(0, len(self.list_aq_reactions)):
+            self.log_k_vector.append(self.list_aq_reactions[i].log_k)
+        for i in range(0, len(self.list_sorpt_reactions)):
+            self.log_k_vector.append(self.list_sorpt_reactions[i].log_k) 
+    
+    def create_charge_vector (self):
+        '''Creates a list of the charge values'''
+        self.charge_vector = []
+        for i in range(0, len(self.list_aq_pri_sp)):
+            self.charge_vector.append(self.list_aq_pri_sp[i].charge)
+        for i in range(0, len(self.list_aq_sec_sp)):
+            self.charge_vector.append(self.list_aq_sec_sp[i].charge)
+    
+    def create_gfw_vector (self):
+        '''Creates a list of the charge values'''
+        self.gfw_vector = []
+        for i in range(0, len(self.list_aq_pri_sp)):
+            self.gfw_vector.append(self.list_aq_pri_sp[i].gfw)
+        for i in range(0, len(self.list_aq_sec_sp)):
+            self.gfw_vector.append(self.list_aq_sec_sp[i].gfw)
