@@ -9,6 +9,7 @@ from Reaction import *
 
 # Searching functions
 
+# for database type
 def find_Indices_Aqueous_PrimaryBlock(list_text):
     string_startindex = 'Primary_Species\n'
     list_p_end = ['Secondary_Species\n', 'Surface_Primary\n', 'Surface_Secondary\n']
@@ -45,7 +46,29 @@ def find_last_index(list_text, min_point, possible_ends_list):
             ind_last = temp_index
     return ind_last
 
+
+# for Input type
+
+def find_Indices_Solution (list_text):
+    string_startindex='Solution\n'
+    list_p_end = ['Sorption\n']
+    s_index = list_text.index(string_startindex)
+    e_index = find_last_index(list_text, s_index, list_p_end)
+    return s_index, e_index
+
+def find_Indices_Sorption (list_text):
+    string_startindex='Sorption\n'
+    list_p_end = ['Solution\n']
+    s_index = list_text.index(string_startindex)
+    e_index = find_last_index(list_text, s_index, list_p_end)
+    return s_index, e_index
+
+
+
+
 # Functions for reading blocks (i.e. Primary Species, Secondary Species, etc) and outputing parameters
+    
+# for database type
 
 def read_block_Primary_Species (list_datablock_primary):
     # initialization of variables to return
@@ -173,3 +196,14 @@ def read_block_Surface_Secondary (list_datablock_surfsec):
                 line_counter += 1    
       
     return names_sorption_secondary_species, List_Sorption_secondary_species, List_sorption_reactions
+
+
+# for input type
+def read_block_Solution (list_solution):
+    # initialization of variables to return
+    names_aq_component = []
+    values_aq_comp = []
+    # variables for loop
+    line_counter = 0
+    
+    return names_aq_component, values_aq_comp
