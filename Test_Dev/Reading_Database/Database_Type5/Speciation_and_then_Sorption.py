@@ -13,6 +13,7 @@ from Database_SC import Database_SC
 from ChemSys import ChemSys
 from creating_databaseObject_from_text_type1 import *
 from getting_information_from_databaseSC_file_v1 import *
+from getting_informationSC_input_file_v1 import *
 from Read_input_file_type1 import *
 # Read database
 database = 'Type5_Database_JustSolution.txt'
@@ -89,6 +90,10 @@ print(np.array_equal(DS.pseudoS, PseudoS))
 infile = 'Type5_Input_SC_CCM.txt'
 # Instantiating input
 list_aq_component, list_aq_value, list_sorption_comp  = getting_informationSC_input_file_v1 (infile)
+
+#
+CS = ChemSys_Surf()
+
 
 
 

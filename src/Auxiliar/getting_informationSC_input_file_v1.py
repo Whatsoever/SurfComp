@@ -8,7 +8,7 @@ Created on Tue Nov 20 16:34:45 2018
 import compilation_functions_reading_file as cfrf
 
 
-def getting_information_from_databaseSC_file_v1 (text):
+def getting_informationSC_input_file_v1 (text):
     #text = 'Type1.txt' Reading text
     f = open(text, 'r')
     lines = f.readlines()
@@ -24,4 +24,6 @@ def getting_information_from_databaseSC_file_v1 (text):
     [s_index_sorpt, end_index_sorpt] = cfrf.find_Indices_Sorption(lines)
     
     # filling 
-    list_aq_component, list_aq_value= cfrf.read_block_Solution (lines[s_index_sol, end_index_sol])   
+    list_aq_component, list_aq_value = cfrf.read_block_Solution (lines[s_index_sol:end_index_sol])   
+    list_sorption_comp = cfrf.read_block_Sorption (lines[s_index_sorpt:end_index_sorpt])
+    return list_aq_component, list_aq_value, list_sorption_comp

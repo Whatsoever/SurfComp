@@ -205,5 +205,39 @@ def read_block_Solution (list_solution):
     values_aq_comp = []
     # variables for loop
     line_counter = 0
-    
+    while line_counter < len(list_solution):
+        temp = list_solution[line_counter].strip() 
+        if temp == '' or temp[0] == '#' or temp == 'Solution':
+            line_counter += 1
+        else:
+            words_line = temp.split()   
+            names_aq_component.append(words_line[0])
+            values_aq_comp.append(float(words_line[1]))
+            line_counter += 1
     return names_aq_component, values_aq_comp
+
+def read_block_Sorption (list_sorption):
+    # initialization of variables to return
+    list_sorption_class = []
+    # variables for loop
+    line_counter = 0
+    while line_counter < len(list_sorption):
+        temp = list_sorption[line_counter].strip() 
+        if temp == '' or temp[0] == '#' or temp == 'Sorption':
+            line_counter += 1
+        else:
+            words_line = temp.split()
+            if words_line[0] == '-type':
+                Sorpt_pri_sp.set_type_sorption(words_line[1])
+                line_counter += 1
+            elif words_line[0] == '-C1':
+                Sorpt_pri_sp.capacitance_1(words_line[1])
+                line_counter += 1
+            else:
+                Sorpt_pri_sp = Surf_species(words_line[0])
+                Sorpt_pri_sp.moles_component_solid(words_line[1])
+                Sorpt_pri_sp.specific_surface_area(words_line[2])
+                Sorpt_pri_sp.solid_concentration(words_line[3])
+                list_sorption_class.append (Sorpt_pri_sp)
+                line_counter += 1
+    return list_sorption_class

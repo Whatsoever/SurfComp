@@ -12,7 +12,7 @@ It is a daughter of Database_SC but it can be used without a database.
 from Database_SC import Database_SC
 import numpy as np
 
-class ChemSys (Database_SC):
+class ChemSys_Surf (Database_SC):
     '''
         ChemSys is a daughter class from Database_SC which is a daughter class of Database. Hence, they depend on these parameters.        
             #Note for myself and other contributors, if you add or delete properties or methods of the class, documeted it here. Otherwise, it is a little caos (regarding my own experience)
@@ -29,6 +29,10 @@ class ChemSys (Database_SC):
                 calculate_dielectric_constant
                 calculate_A_activitypar
                 calculate_B_activitypar
+                
+        NOTE: Remark that ChemSys_Surf is a daughter class from Database_SC. Therefore, in order to create the pseudo S matrix (The stoichiometric matrix that does not contain the surface potential as unknown). Methods like ...
+                ... set_names_aq_primary_species (names_aq_pri_sp), set_names_aq_secondary_species (names_aq_sec_sp), set_names_sorpt_primary_species (names_sorpt_pri_sp), set_names_sorpt_secondary_species (names_sorpt_sec_sp), set_aq_list_pri_class (list_aq_pri_sp), ...
+                ... set_aq_list_sec_class (list_aq_sec_sp) can be used and must be used. However, it has to be check that the input given is in accordance with the own system, that can be done by ???????????
     '''
     # Constructor
     def __init__(self):
@@ -37,6 +41,7 @@ class ChemSys (Database_SC):
         self.universal_gas_constant = 8.314472  # J/(K*mol)
         self.calculate_dielectric_constant()
         pass
+    # Creating first pseudoS
     
     #Setters
     
