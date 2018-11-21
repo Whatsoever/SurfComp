@@ -219,6 +219,7 @@ def read_block_Solution (list_solution):
 def read_block_Sorption (list_sorption):
     # initialization of variables to return
     list_sorption_class = []
+    names_pri_sorpt = []
     # variables for loop
     line_counter = 0
     while line_counter < len(list_sorption):
@@ -235,9 +236,10 @@ def read_block_Sorption (list_sorption):
                 line_counter += 1
             else:
                 Sorpt_pri_sp = Surf_species(words_line[0])
+                names_pri_sorpt.append(words_line[0])
                 Sorpt_pri_sp.moles_component_solid(words_line[1])
                 Sorpt_pri_sp.specific_surface_area(words_line[2])
                 Sorpt_pri_sp.solid_concentration(words_line[3])
                 list_sorption_class.append (Sorpt_pri_sp)
                 line_counter += 1
-    return list_sorption_class
+    return names_pri_sorpt, list_sorption_class

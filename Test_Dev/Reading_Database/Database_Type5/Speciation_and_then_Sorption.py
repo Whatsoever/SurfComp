@@ -11,6 +11,7 @@ from Reaction import Reaction
 from Database import Database
 from Database_SC import Database_SC
 from ChemSys import ChemSys
+from ChemSys_Surf import ChemSys_Surf
 from creating_databaseObject_from_text_type1 import *
 from getting_information_from_databaseSC_file_v1 import *
 from getting_informationSC_input_file_v1 import *
@@ -89,12 +90,12 @@ print(np.array_equal(DS.pseudoS, PseudoS))
 # Reading input
 infile = 'Type5_Input_SC_CCM.txt'
 # Instantiating input
-list_aq_component, list_aq_value, list_sorption_comp  = getting_informationSC_input_file_v1 (infile)
+list_aq_component, list_aq_value, names_pri_sorpt, list_sorption_comp  = getting_informationSC_input_file_v1 (infile)
 
 #
 CS = ChemSys_Surf()
-
-
-
+CS.define_system_from_input_and_database ( DS, list_aq_component, list_aq_value, names_pri_sorpt, List_pri_sorpt_class = list_sorption_comp)
+CS.create_pseudo_S()
+print(CS.pseudoS) 
 
 

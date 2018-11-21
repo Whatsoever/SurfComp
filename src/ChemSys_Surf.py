@@ -41,9 +41,134 @@ class ChemSys_Surf (Database_SC):
         self.universal_gas_constant = 8.314472  # J/(K*mol)
         self.calculate_dielectric_constant()
         pass
+    
+    # Instantiation of main attributes
+    def define_system_from_input_and_database (self, database, n_aq_prim, list_aq_val, name_sorpt_pri, List_pri_sorpt_class = None):
+        '''
+            Given a database, the list of aqueous primary species, the list of aqueous values for the components associated to the primary species, the list of sorption of primary species 
+            The system is defined.
+            As extra List_pri_sorpt_class is given to update some species. list_sorpt_pri == list_pri_sorpt_class[i].name for i in length.
+        '''
+        # check that list_sorpt_pri is coherent with List_pri_sorpt_class
+        assert len(n_aq_prim) == len(list_aq_val), \
+        "The length of the aqueous primary species and the aqueous component values is not equal."
+        if List_pri_sorpt_class is not None:
+            assert len(name_sorpt_pri) == len(List_pri_sorpt_class), \
+                "The length of the sorption primary species and the sorption list classes is not equal."
+            for i in range(0, len(name_sorpt_pri)):
+                assert i == name_sorpt_pri.index(List_pri_sorpt_class[i].name), 'The name or order of the list of names of sorption primary species and the list of classes of sorption primary species is not coherent.'
+        # Instantiation of main attributes (Although not necessary, it is useful to keep sense)
+        names_aq_pri_sp = n_aq_prim
+        names_aq_sec_sp = []
+        list_aq_pri_sp = []
+        list_aq_sec_sp = []
+        list_aq_reactions = []
+        names_sorpt_pri_sp = name_sorpt_pri
+        names_sorpt_sec_sp = []
+        if List_pri_sorpt_class is not None:
+            list_sorpt_pri_sp = List_pri_sorpt_class
+        else:
+            list_sorpt_pri_sp = []
+        list_sorpt_sec_sp = []
+        list_sorpt_reactions = []
+    
+        #  Drawn the list_aq_pri_sp & list_sorpt_pri_sp(if necessary) from Database
+        index_list_pri_aq = self.search_index_list_classlist (names_aq_pri_sp, database.names_aq_pri_sp)
+        for i in index_list_pri_aq:
+            list_aq_pri_sp.append(database.list_aq_pri_sp[i])
+        if List_pri_sorpt_class is None:
+            index_list_sorpt = self.search_index_classlist_list (names_sorpt_pri_sp, database.names_sorpt_pri_sp)
+            for i in index_list_sorpt:
+                list_sorpt_pri_sp.append(database.list_sorpt_pri_sp[i])
+        
+        # Obtain list_aq_reactions, list_aq_sec_sp and names_aq_sec_sp  from names_aq_pri_sp
+        index_aq_reactions, names_aq_sec_sp = self.search_index_list_listdictionaryreactions (names_aq_pri_sp, database.list_aq_reactions)
+        
+        index_list_sec_aq = self.search_index_list_classlist (names_aq_sec_sp, database.names_aq_sec_sp)
+        for i in index_list_sec_aq:
+            list_aq_sec_sp.append(database.list_aq_sec_sp[i])
+        
+        for i in index_aq_reactions:
+            list_aq_reactions.append(database.list_aq_reactions[i])
+        
+        # Obtain list_sorpt_reactions, list_sorpt_sec_sp and names_sorpt_sec_sp  from names_aq_pri_sp + names_aq_sec_sp + names_sorpt_pri_sp
+        index_sorpt_reactions, names_sorpt_sec_sp = self.search_index_list_listdictionaryreactions (names_aq_pri_sp + names_aq_sec_sp + names_sorpt_pri_sp, database.list_sorpt_reactions)
+        
+        index_list_sec_sorpt = self.search_index_list_classlist (names_sorpt_sec_sp, database.names_sorpt_sec_sp)
+        for i in index_list_sec_sorpt:
+            list_sorpt_sec_sp.append(database.list_sorpt_sec_sp[i])
+        
+        for i in index_sorpt_reactions:
+            list_sorpt_reactions.append(database.list_sorpt_reactions[i])
+            
+        # Instantiation of main variables, hence definition of system to study
+        self.set_names_aq_primary_species (names_aq_pri_sp)
+        self.set_names_aq_secondary_species (names_aq_sec_sp)
+        self.set_names_sorpt_primary_species ( names_sorpt_pri_sp)
+        self.set_names_sorpt_secondary_species (names_sorpt_sec_sp)
+        self.set_aq_list_pri_class (list_aq_pri_sp)
+        self.set_aq_list_sec_class (list_aq_sec_sp)        
+        self.set_sorpt_list_pri_class (list_sorpt_pri_sp)
+        self.set_sorpt_list_sec_class (list_sorpt_sec_sp)
+        self.set_aq_reactions_list (list_aq_reactions)
+        self.set_sorpt_reactions_list (list_sorpt_reactions)
+
+        self.set_vector_aqueous_component_value(list_aq_val)    
+            
+            
+            
+            
+            
+    def search_index_list_classlist (self, list1, list2):
+        '''
+            The function returns a list of indices of the position of list1 in list2. --> E.g. list1 =[a c], list2 = [a b c d] function returns listindices = [1,3]
+            Precondition1: list1 <= list2
+            Precondition2: list1 is completely include in list2. Otherwise an error occurs
+        '''
+        assert len(list1) <= len(list2), "List of species in the chemical system must be equal or smaller than the list os primary species on the database"
+        list_indices = []  
+        for i in list1:
+            # appends the index of the list2 that coincide with list1.
+            list_indices.append(list2.index(i))
+        return list_indices
+            
+    def search_index_list_listdictionaryreactions (self, list1, list_dictionaries):
+        '''
+            The function returns two list. One with the indices of the reactions that occur in the ChemSys_Surf according to the inputed dictionary, and the other the secondary species in each reaction. 
+            Both, list are in agremment. e.g. l_ind_reaction = [0, 4, 6, 9], l_secondary_species = ['A' 'B' 'C' 'F']  From reaction 0 of the database the secondary species obtained is A, from 6 is C, and so on.
+        '''
+        index_reactions = []
+        name_aq_sec_sp  = []      
+        
+        for i in range(0, len(list_dictionaries)):
+            temp_dict = list_dictionaries[i]
+            temp_dict_list_keys = list(temp_dict.reaction.keys())
+            n_s = 0
+            for j in temp_dict_list_keys:
+                count = list1.count(j)
+                if count != 1 and count != 0:
+                    raise ValueError('[ChemSys class, method Index_ReactionsinDatabase] It seems that the name_primary_species property is wrong.')
+                elif count == 0:
+                    n_s += 1
+                    n_s_name = j
+            if n_s == 1:
+                index_reactions.append(i)
+                name_aq_sec_sp.append(n_s_name)
+                
+        return   index_reactions, name_aq_sec_sp
+            
     # Creating first pseudoS
     
     #Setters
+    # aqueous component vector
+    def set_vector_aqueous_component_value(self, list_aq_val):
+        '''
+            The value of vector
+        '''
+        self.aq_u_vector = list_aq_val
+    
+    
+    
     
     # Faraday constant    
     def set_Faraday_constant (self, new_value):
@@ -77,9 +202,9 @@ class ChemSys_Surf (Database_SC):
         
      # dielectric constant
     def set_dielectric_constant (self, e_c):
-         '''
-             Set the dielectric constant of water
-         '''
+        '''
+            Set the dielectric constant of water
+        '''
         self.dielectric_constant = e_c
         
         
