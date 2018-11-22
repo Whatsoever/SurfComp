@@ -135,6 +135,22 @@ class Surf_species (Species):
                 - dependent         --> these would be use for weak, strong, and other type of assembles. Namely, one surface potential and different phases. A species can be primary but electrostatic dependent
         '''
         self.type_sorption = type_sorpt
+        self.names_Boltz_psi = self.create_name_electrostatic_potential_type (type_sorpt)
+    
+    
+    def create_name_electrostatic_potential_type (self, type_sorpt):
+        '''
+        Sets the name of the boltzmanelectrostatic potential according to the type of sorption:
+                - Non-electrostatic []
+                - Constant capacity [Schindler et al. (1976)]
+                - diffuse_layer [Dzombak and Morel (1990)]
+                - three layer exchange [Davies and Leckie (1978)]
+                - dependent         --> these would be use for weak, strong, and other type of assembles. Namely, one surface potential and different phases. A species can be primary but electrostatic dependent
+        '''
+        if type_sorpt == 'CCM':
+            return self.name + '_Boltzf_psi0'               # Boltzf_psi0 stands for Boltzman factor of the psi which is equal to
+        
+        
     # In order to solve the speciation problem with sorption, the number of total moles of the component must be known.
     # These value is not the number of moles of the solid species but the number of moles of the sum of all solid species related to the primary
     # These is what in CHEPROO would be the unknown u_sorptspecies or what Westall call the T_sigma

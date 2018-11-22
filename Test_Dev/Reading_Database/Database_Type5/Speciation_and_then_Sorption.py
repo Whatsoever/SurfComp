@@ -98,4 +98,6 @@ CS.define_system_from_input_and_database ( DS, list_aq_component, list_aq_value,
 CS.create_pseudo_S()
 print(CS.pseudoS) 
 
+CS.
+
 

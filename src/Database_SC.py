@@ -91,7 +91,7 @@ class Database_SC (Parent):
     
     def set_aq_reactions_list (self, list_aq_reactions):
         self.list_aq_reactions = list_aq_reactions
-        
+       
     def set_sorpt_reactions_list (self, list_sorpt_reactions):
         self.list_sorpt_reactions = list_sorpt_reactions
         

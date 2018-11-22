@@ -29,3 +29,10 @@ class Reaction:
         Although, currently not formula to change the log_k that value of k regarding the temperature or pressure has been implemented.
         '''
         self.log_k = log_k
+    
+    def is_species_in_reaction (self, species):
+        '''
+            It looks if a given species is in the reaction. The species is given as a string.
+        '''
+        list_keys = [*self.reaction]
+        return list_keys.count(species) == 1

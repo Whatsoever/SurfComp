@@ -115,9 +115,103 @@ class ChemSys_Surf (Database_SC):
 
         self.set_vector_aqueous_component_value(list_aq_val)    
             
-            
-            
-            
+        
+        
+    # Matrix_Creation_From_Database
+    def create_S (self):
+        # First we create the pseudoS matrix (if it does not exist) which has the following structure:
+        #                                        Number_aqueous_primary_sp   Number_sorption_primary_sp    Number_aqueous_secondary_sp   Number_sorption_secondary_sp    
+        #                         n_aqueousR1   |                                                                                                                   |
+        #               pseudoS = nRn           |                                                                                                                   |
+        #               	        n_sorptionR1  |                                            Stoichiometric values                                                  |
+        #                         nRm           |                                                                                                                   |
+        #
+        #
+        #  Remark: pseudoS is a matrix that is almost the sorption stoichiometric matrix. 
+        #  The order of the columns is given by the Number_aqueous_primary_sp + Number_sorption_primary_sp + Number_aqueous_secondary_sp + Number_sorption_secondary_sp
+        #  The order of the rows is first number of aqueous reactions followed by the number of the sorption reactions.
+        if not hasattr(self, 'pseudoS'):
+            self.create_pseudo_S()
+        
+        # Now the electrostatic variables must be added. These variables are treated as chemical species. They will be introduced between Number_sorption_primary_sp  and  Number_aqueous_secondary_sp.
+        #
+        # Each primary sorption class should have an attribute called type_sorption. The attribute will determine the number of surface potential variables that must be added to the stoichiometric matrix.
+        # -CCM will add only one.
+        #
+        #
+        # for the number of rows. Reactions that are aqueous have 0 has stoichiometric value. The stoichiometric values for the added surface potential species is obtained by the type of sorption and b the stoichiometric_value and the charge.
+        if not hasattr(self, 'pseudoS') or hasattr(self, 'pseudoS'):
+            self.create_electro_sorption_stoichiometric_M ()
+        
+        # defining length and names of columns
+        self.S_names_columns = self.names_aq_pri_sp + self.names_sorpt_pri_sp + self.names_elec_sorpt + self.names_aq_sec_sp + self.names_sorpt_sec_sp
+        self.S_length_columns = len(self.pseudoS_names_columns)
+        # defining length of rows
+        self.S_length_rows = len(self.list_aq_reactions) + len(self.list_sorpt_reactions)
+        
+        pseudo_S = copy(self.pseudoS)
+        S_electro = copy(self.S_electro)
+        pos_1 = self.length_aq_pri_sp + self.length_sorpt_pri_sp
+        
+        S = np.concatenate((np.concatenate ((pseudo_S[:,:pos_1], S_electro), axis = 1), pseudo_s[:,pos_1:]), axis = 1)
+        
+        assert self.S_length_rows == S.shape[0]
+        assert self.S_length_columns == S.shape[1]
+        
+        self.S = S
+    
+    # The stoichiometric matrix derived from sorption species.
+    def create_electro_sorption_stoichiometric_M (self):
+        '''
+            The function assumes that some variables are already defined
+        '''
+        # create list of new boltzman surface potential variables from sorption species
+        self.names_elec_sorpt = []
+        for i in self.length_sorpt_pri_sp:
+            if isinstance(self.list_sorpt_pri_sp[i].names_Boltz_psi, str):
+                self.names_elec_sorpt.append(self.list_sorpt_pri_sp[i].names_Boltz_psi)
+        self.length_names_elec_sorpt = len(self.names_elec_sorpt)
+        # Block
+        if not hasattr(self, 'pseudoS_length_rows'):
+            # self.pseudoS_length_rows = len(self.list_aq_reactions) + len(self.list_sorpt_reactions)
+            self.pseudoS_length_rows = self.length_aq_sec_sp + self.length_sorpt_sec_sp
+        S_electro = np.zeros((self.pseudoS_length_rows, self.length_names_elec_sorpt))
+        col_position = 0
+        for i in self.length_sorpt_pri_sp:
+            sub_B = self.create_stoichiometric_surfacepotential (self.names_sorpt_pri_sp, self.list_sorpt_pri_sp[i].type_sorption)
+            if len(sub_B.shape) == 1:
+                S_electro[:, col_position] = sub_B
+                col_position += 1 
+            elif len(sub_B.shape) == 2:
+                old_col_position = col_position
+                col_position = col_position + sub_B.shape[1]
+                S_electro[:, old_col_position:col_position] = sub_B
+        self.S_electro = S_electro
+        
+    # creates stoichiometric blocks    
+    def create_stoichiometric_surfacepotential (self, name_pri_sp, type_sorpt):
+        '''
+        '''
+        if type_sorpt == 'CCM':
+            d = np.zeros((self.length_aq_sec_sp + self.length_sorpt_sec_sp))
+            for i in range(0, self.length_sorpt_sec_sp):
+                if self.list_sorpt_reactions[i].is_species_in_reaction (name_pri_sp):
+                    names_species_in_reaction = [*self.list_sorpt_reactions[i].reaction]
+                    summ_charges_times_stoichiometric = 0
+                    for j in names_species_in_reaction:
+                        if j in self.name_primary_species:
+                            z = self.list_aq_pri_sp[self.name_primary_species.index(j)].charge
+                            n = self.list_sorpt_reactions[i].reaction[j]
+                            summ_charges_times_stoichiometric = summ_charges_times_stoichiometric  + (n*z)
+                        elif j in self.name_secondary_species:   
+                            z = self.list_aq_sec_sp[self.name_secondary_species.index(j)].charge
+                            n = self.list_sorpt_reactions[i].reaction[j]
+                            summ_charges_times_stoichiometric = summ_charges_times_stoichiometric  + (n*z)
+                    d[self.length_aq_sec_sp + i] = summ_charges_times_stoichiometric
+        return d
+    
+    
+    
             
     def search_index_list_classlist (self, list1, list2):
         '''
@@ -167,8 +261,23 @@ class ChemSys_Surf (Database_SC):
         '''
         self.aq_u_vector = list_aq_val
     
+    # set names_electrostatic_variables
+    def set_names_electrostatic_variables (self, names_elsctrostatic_var):
+        '''
+            The name of the electrostatic potentials that must be taken into account.
+            Preferible define them using create_electro_sorption_stoichiometric_M
+            Since the names_elsctrotatic_var and the amount in general should be related to a surface
+        '''
+        self.names_elec_sorpt = names_elsctrostatic_var
+        self.length_names_elec_sorpt = len(self.names_elec_sorpt)
     
-    
+    # set the stoichiometric matrix given by
+    def set_electro_sorption_stoichiometric_M (self, S_electro):
+        '''
+            The S matrix defined having as columns the surface variable potentials and as rows the reactions.
+            Preferible define them using create_electro_sorption_stoichiometric_M
+        '''
+        self.S_electro =  S_electro
     
     # Faraday constant    
     def set_Faraday_constant (self, new_value):
