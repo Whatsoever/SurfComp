@@ -145,20 +145,62 @@ class ChemSys_Surf (Database_SC):
         
         # defining length and names of columns
         self.S_names_columns = self.names_aq_pri_sp + self.names_sorpt_pri_sp + self.names_elec_sorpt + self.names_aq_sec_sp + self.names_sorpt_sec_sp
-        self.S_length_columns = len(self.pseudoS_names_columns)
+        self.S_length_columns = len(self.pseudoS_names_columns) + len(self.names_elec_sorpt)
         # defining length of rows
         self.S_length_rows = len(self.list_aq_reactions) + len(self.list_sorpt_reactions)
         
-        pseudo_S = copy(self.pseudoS)
-        S_electro = copy(self.S_electro)
+        pseudo_S = self.pseudoS.copy()
+        S_electro = self.S_electro.copy()
         pos_1 = self.length_aq_pri_sp + self.length_sorpt_pri_sp
         
-        S = np.concatenate((np.concatenate ((pseudo_S[:,:pos_1], S_electro), axis = 1), pseudo_s[:,pos_1:]), axis = 1)
+        S = np.concatenate((np.concatenate ((pseudo_S[:,:pos_1], S_electro), axis = 1), pseudo_S[:,pos_1:]), axis = 1)
         
         assert self.S_length_rows == S.shape[0]
         assert self.S_length_columns == S.shape[1]
         
         self.S = S
+        
+    # Creation of the  Component matrix, [Westall does not really make a difference between stoichiometric matrix and U matrix, since somehow they are related]
+    def create_U (self):
+        if not hasattr(self, 'S'):
+            self.create_S ()
+            
+        S1, S2 = self.separte_S_into_S1_and_S2()
+        npri = self.length_aq_pri_sp +self.length_sorpt_pri_sp + len(self.names_elec_sorpt)
+        I = np.identity(npri)
+        Stop=-np.matmul(S1.transpose(),np.linalg.inv(S2.transpose()))
+        U = np.concatenate((I, Stop), axis=1)
+        U = self.remove_electro_mass_from_U (U)
+        self.U = U
+    
+    
+    # remove_electro_mass_from_U ()
+    def remove_electro_mass_from_U (self, U):
+        '''
+            This methods should be used only in create_U not outside it.
+        '''
+        npri = self.length_aq_pri_sp +self.length_sorpt_pri_sp
+        for i in range(0, len(self.names_elec_sorpt)):
+            U[npri, npri] = 0
+            npri +=  1
+        return U
+    
+    # Separate matrix from Primary and Secondary species
+    def separte_S_into_S1_and_S2 (self):
+        '''
+            Separates primary and Secondary species matrices.
+            e.g.:
+                            Sp1  Sp1  Sp2                      
+                     R1 ||  x11  x12  x13 ||                    || x11 x12 ||           || x11 ||
+                S =  R2 ||  x21  x22  x23 ||        in to  S1 = || x21 x22 ||   and S2= || x21 ||
+                     R3 ||  x31  x32  x33 ||                    || x31 x32 ||           || x32 ||
+        ''' 
+        np = self.length_aq_pri_sp +self.length_sorpt_pri_sp + len(self.names_elec_sorpt)
+        S1 = self.S[:, 0:np].copy() 
+        S2 = self.S[:, np:].copy()
+        return S1, S2
+    
+    
     
     # The stoichiometric matrix derived from sorption species.
     def create_electro_sorption_stoichiometric_M (self):
@@ -167,7 +209,7 @@ class ChemSys_Surf (Database_SC):
         '''
         # create list of new boltzman surface potential variables from sorption species
         self.names_elec_sorpt = []
-        for i in self.length_sorpt_pri_sp:
+        for i in range(0,self.length_sorpt_pri_sp):
             if isinstance(self.list_sorpt_pri_sp[i].names_Boltz_psi, str):
                 self.names_elec_sorpt.append(self.list_sorpt_pri_sp[i].names_Boltz_psi)
         self.length_names_elec_sorpt = len(self.names_elec_sorpt)
@@ -177,8 +219,8 @@ class ChemSys_Surf (Database_SC):
             self.pseudoS_length_rows = self.length_aq_sec_sp + self.length_sorpt_sec_sp
         S_electro = np.zeros((self.pseudoS_length_rows, self.length_names_elec_sorpt))
         col_position = 0
-        for i in self.length_sorpt_pri_sp:
-            sub_B = self.create_stoichiometric_surfacepotential (self.names_sorpt_pri_sp, self.list_sorpt_pri_sp[i].type_sorption)
+        for i in range(0, self.length_sorpt_pri_sp):
+            sub_B = self.create_stoichiometric_surfacepotential (self.names_sorpt_pri_sp[i], self.list_sorpt_pri_sp[i].type_sorption)
             if len(sub_B.shape) == 1:
                 S_electro[:, col_position] = sub_B
                 col_position += 1 
@@ -199,12 +241,12 @@ class ChemSys_Surf (Database_SC):
                     names_species_in_reaction = [*self.list_sorpt_reactions[i].reaction]
                     summ_charges_times_stoichiometric = 0
                     for j in names_species_in_reaction:
-                        if j in self.name_primary_species:
-                            z = self.list_aq_pri_sp[self.name_primary_species.index(j)].charge
+                        if j in self.names_aq_pri_sp:
+                            z = self.list_aq_pri_sp[self.names_aq_pri_sp.index(j)].charge
                             n = self.list_sorpt_reactions[i].reaction[j]
                             summ_charges_times_stoichiometric = summ_charges_times_stoichiometric  + (n*z)
-                        elif j in self.name_secondary_species:   
-                            z = self.list_aq_sec_sp[self.name_secondary_species.index(j)].charge
+                        elif j in self.names_aq_sec_sp:   
+                            z = self.list_aq_sec_sp[self.names_aq_sec_sp.index(j)].charge
                             n = self.list_sorpt_reactions[i].reaction[j]
                             summ_charges_times_stoichiometric = summ_charges_times_stoichiometric  + (n*z)
                     d[self.length_aq_sec_sp + i] = summ_charges_times_stoichiometric
@@ -254,6 +296,14 @@ class ChemSys_Surf (Database_SC):
     # Creating first pseudoS
     
     #Setters
+    
+    # set stoichiometric Matrix
+    def set_S (self, S, names_species_columns):
+        self.S = S
+        self.S_length_rows = S.shape[0]
+        self.S_length_columns = S.shape[1]
+        self.S_names_columns = names_species_columns
+        assert len(names_species_columns) == self.S_length_columns, 'The columns must have the same size that the list of strings containing the name of the species.'
     # aqueous component vector
     def set_vector_aqueous_component_value(self, list_aq_val):
         '''
@@ -356,3 +406,148 @@ class ChemSys_Surf (Database_SC):
         A = 50.29158649e8*np.sqrt(self.waterdensity)
         B = np.sqrt(self.temperature*self.dielectric_constant)
         self.B_activitypar = A/B
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+       
+        
+        
+        
+        
+        
+        ############################################################################################################################################################
+        ################# Speciation and related algorithms ########################################################################################################
+        ############################################################################################################################################################
+        
+        #
+        def Speciation_Westall1980_CCM (self, tolerance = 1e-6, max_iterations = 100):
+            '''
+                Implementation of the algorithm given in "Chemical Equilibrium Including Adsorption on Charged Surfaces" Westall, 1980
+                ages 37-to-39
+            '''
+            # instantiation of unknowns
+            c_guess = self.instantiation_step ()
+            c_n =c_guess
+            pos_start_elec = self.length_aq_sec_sp + self.length_sorpt_sec_sp
+            pos_end_elec = self.length_aq_sec_sp + self.length_sorpt_sec_sp + self.length_names_elec_sorpt
+            S1, S2 = self.separte_S_into_S1_and_S2()
+            # instantiation variables for loop
+            counter_iterations = 0
+            err = tolerance + 1
+            sorpt_u_vector = self.create_sorpt_vec()
+            T_chem = np.concatenate ((self.aq_u_vector, sorpt_u_vector))
+            while err>tolerance and counter_iterations < max_iterations:
+                # Calculate U vector [If I am not wrong T_sigma must be calculated at every step, since it depends somehow in the surface potential, and it is unknown]
+                u_electro = self.calculate_u_electro(c_n[pos_start_elec:pos_end_elec])
+                T = np.concatenate ((T_chem, u_electro))
+                # Calculate f or better said in this specific case Y
+                Y = self.U.dot(c_n) - T
+                # Calculate Z
+                Z = self.Jacobian_Speciation_CCM_Westall1980(c_n, pos_start_elec, pos_end_elec)
+                # Calculating the diff, Delta_X
+                # In the paper Delta_X is X_old - X_new or as they called X_original - X_improved.
+                # I am writing X_new- X-old, hence I use -Y instead of Y.
+                delta_X = np.linalg.solve(Z,-Y)
+            
+                # The error will be equal to the maximum increment
+                err = max(abs(delta_X))
+            
+                # Relaxation factor borrow from Craig M.Bethke to avoid negative values
+                max_1 = 1
+                max_2 =np.amax(-2*np.multiply(delta_X, 1/c_n[0:nps]))
+                Max_f = np.amax([max_1, max_2])
+                Del_mul = 1/Max_f
+            
+            
+                # Update
+                c_n[0:nps] = c_n[0:nps] + Del_mul*delta_X   # Update primary species
+                log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_n[0:nps])))      # Update secondary
+                c_n[nps:] =10**log_c2
+                if counter_iterations >= max_iterations:
+                    raise ValueError('Max number of iterations surpassed.')
+                    self.c = c_n
+            return c_n
+                
+                
+        def calculate_u_electro (self, unknonw_boltzman_vect):
+            '''
+                T_depends in the surface sorption type somehow
+            '''
+            T_sigma = []
+            pos_point_electro_unknown = 0
+            for i in range(0, self.length_sorpt_sec_sp):
+                if self.list_sorpt_pri_sp[i].type_sorption == 'CCM':
+                    x = unknonw_boltzman_vect [pos_point_electro_unknown]
+                    psi = self.Boltzman_factor_2_psi(x)
+                    charge_surface = self.list_sorpt_pri_sp[i].C1*psi
+                    T = charge_surface*((self.sp_surf_area*self.solid_concentration_or_grams)/self.Faraday_constant)
+                    T_sigma.append(T)
+                
+            return np.array(T_sigma)
+        
+        
+        def Boltzman_factor_2_psi(self, x):
+            D = self.universal_gas_constant*self.temperature
+            psi = - np.log(x)*(D/self.Faraday_constant)
+            return psi
+
+        def  create_sorpt_vec(self):
+            T_sorpt = []
+            for i in range(0, self.length_sorpt_sec_sp):
+                T_sorpt.append(self.list_sorpt_pri_sp[i].T_solid)
+            return T_sorpt
+        
+        def Jacobian_Speciation_Westall1980(self, C, n_aq_plus_n_sorpt, n_primaryspecies):
+        '''
+            The jacobian matrix following an implementation based on the algorithm of  Westall (1980) 
+            "Chemical equilibrium Including Adsorption on Charged Surfaces"
+             Pages 37-to-39
+             It is assumed that C is order first with the primary species and then with the secondary species such as C = [C1 C2]
+        '''
+        # The first part treats all terms as it was a normal speciation
+        Z = np.zeros((n_primaryspecies, n_primaryspecies))
+        for i in range(0, n_primaryspecies):
+            for j in range(0, n_primaryspecies):
+                Z[i,j]= np.matmul(np.multiply(self.U[i,:], self.U[j,:]), (C/C[j]))
+        
+        # According to the point 2 of Table III of Westall the term C*sa/F*RT/Funknwon must be added to the electrostatic part
+        # I am supposing here that all the sorption phases are CCM
+        for i in range(0, self.length_sorpt_sec_sp):
+            	if self.list_sorpt_pri_sp[i].type_sorption == 'CCM':
+                    p = i + n_aq_plus_n_sorpt
+                    D1 = self.universal_gas_constant*self.temperature
+                    D2 = self.Faraday_constant*C[i]
+                    F = ((self.sp_surf_area*self.solid_concentration_or_grams)/self.Faraday_constant)
+                    Z[p,p] = Z[p,p] + (self.list_sorpt_pri_sp[i].C1*F)*(D1/D2)
+        return Z
+
+        
+        
+        
+        
+        
+        
+        
+        

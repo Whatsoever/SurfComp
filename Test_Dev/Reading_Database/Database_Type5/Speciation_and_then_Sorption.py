@@ -57,6 +57,41 @@ print(c2)
 
 
 #######################################   FROM HERE STARTS THE SORPTION PART ##########################################################################################
+# Westall 1980
+# Read database
+database_file = 'Type5_Database_SC_Westall1980_CCMexample.txt'
+# Instantiating database
+n_aq_sp_pri, n_aq_sp_sec, n_sorpt_sp_pri, n_sorpt_sp_sec, Aq_sp_list_pri, Aq_sp_list_sec, Sorp_sp_list_pri, Sorp_sp_list_sec, Aq_list_react, Sorp_list_react = getting_information_from_databaseSC_file_v1 (database_file)
+
+
+DS = Database_SC()
+DS.set_names_aq_primary_species ( n_aq_sp_pri)
+DS.set_names_aq_secondary_species ( n_aq_sp_sec)
+DS.set_names_sorpt_primary_species (n_sorpt_sp_pri)
+DS.set_names_sorpt_secondary_species (n_sorpt_sp_sec)
+DS.set_aq_list_pri_class (Aq_sp_list_pri)
+DS.set_aq_list_sec_class (Aq_sp_list_sec)
+DS.set_sorpt_list_pri_class (Sorp_sp_list_pri)
+DS.set_sorpt_list_sec_class (Sorp_sp_list_sec)
+DS.set_aq_reactions_list (Aq_list_react)
+DS.set_sorpt_reactions_list (Sorp_list_react)
+
+# Reading input
+infile = 'Type5_Input_SC_CCM_Westall1980_CCMexample.txt'
+# Instantiating input
+list_aq_component, list_aq_value, names_pri_sorpt, list_sorption_comp  = getting_informationSC_input_file_v1 (infile)
+
+#
+CS = ChemSys_Surf()
+CS.define_system_from_input_and_database ( DS, list_aq_component, list_aq_value, names_pri_sorpt, List_pri_sorpt_class = list_sorption_comp)
+
+
+CS.create_U()
+#print(CS.U)
+
+
+######################################################################################################################################################################
+#Applying alorithm
 
 # Read database
 database_file = 'Type5_Database_SC.txt'
@@ -79,11 +114,11 @@ DS.create_pseudo_S()
 
 #print(DS.pseudoS)
 # In this case, unless change on the database, this matrix should be the Pseudo S matrix of the database clase.
-PseudoS = np.array([[1, 0, 0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0], [0,  0, -1,  0,  0, -1,  1,  0,  0,  0,  0,  0,  0,  0,  0], [-3,  0,  0, -1,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0], [-1,  0,  0, -1,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0], \
+DSPseudoS = np.array([[1, 0, 0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0,  0,  0], [0,  0, -1,  0,  0, -1,  1,  0,  0,  0,  0,  0,  0,  0,  0], [-3,  0,  0, -1,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0], [-1,  0,  0, -1,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0], \
                     [-2,  0,  0, -1,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0], [-1,  0,  0,  0, -1,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0], [1,  0,  0,  0, -1,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0], \
                     [-2,  0,  0, -1, -1,  1,  0,  0,  0, 0,  0,  0,  1,  0,  0], [-1,  0,  0, -1, -1,  1,  0,  0,  0,  0,  0, 0,  0,  1,  0], [0, 0,  0, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]])
 
-print(np.array_equal(DS.pseudoS, PseudoS))
+print(np.array_equal(DS.pseudoS, DSPseudoS))
 
 
 
@@ -96,8 +131,26 @@ list_aq_component, list_aq_value, names_pri_sorpt, list_sorption_comp  = getting
 CS = ChemSys_Surf()
 CS.define_system_from_input_and_database ( DS, list_aq_component, list_aq_value, names_pri_sorpt, List_pri_sorpt_class = list_sorption_comp)
 CS.create_pseudo_S()
-print(CS.pseudoS) 
-
-CS.
+#print(CS.pseudoS) 
 
 
+# In this case, unless change on the database, this matrix should be the Pseudo S matrix of the database clase.
+CSPseudoS = np.array([[1, 0, 0,  1,  0,  0,  0,  0,  0,  0,  0,  0], [-3, -1,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0], [-1,  -1,  0,  0,  0,   1,  0,  0,  0,  0,  0,  0], \
+                    [-2, -1,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0], [-1, 0, -1,  0,  0,  0,  0,   1,  0,  0,  0,  0], [1,  0, -1,  0,  0,  0,  0,  0,  1,  0,  0,  0], \
+                    [-2, -1, -1,  1,  0,  0,  0, 0,  0,   1,  0,  0], [-1, -1, -1,  1,  0,  0,  0,  0,  0, 0,   1,  0], [0, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0,  1]])
+
+print(np.array_equal(CS.pseudoS, CSPseudoS))
+
+
+CS.create_S ()
+#print(CS.S) 
+
+CS_S = np.array([[1, 0, 0, 0, 1,  0,  0,  0,  0,  0,  0,  0,  0], [-3, -1,  0, 0, 0,  1,  0,  0,  0,  0,  0,  0,  0], [-1,  -1,  0,  0, 0,  0,   1,  0,  0,  0,  0,  0,  0], \
+                    [-2, -1,  0, 0, 0,  0,  0,  1,  0,  0,  0,  0,  0], [-1, 0, -1, -1, 0,  0,  0,  0,   1,  0,  0,  0,  0], [1,  0, -1, 1, 0,  0,  0,  0,  0,  1,  0,  0,  0], \
+                    [-2, -1, -1,  0, 1,  0,  0,  0, 0,  0,   1,  0,  0], [-1, -1, -1, 1,  1,  0,  0,  0,  0,  0, 0,   1,  0], [0, -1, -1, 3,  0, 0, 0, 0, 0, 0, 0, 0,  1]])
+
+print(np.array_equal(CS.S, CS_S))
+
+
+CS.create_U ()
+print(CS.U)
