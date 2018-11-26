@@ -163,7 +163,7 @@ class Surf_species (Species):
             It shoudl be mols or moles/liter (mol/kgw), etc. it is somehow determined by the Newton-Raphson used, and assumpition of the user. These class does not check units.
         '''
         
-        self.T_solid = mols_or_mols_liter_Tsolid
+        self.T_solid = float(mols_or_mols_liter_Tsolid)
     
     def specific_surface_area(self, Specific_Area):
         '''
@@ -171,7 +171,7 @@ class Surf_species (Species):
             It is assume here that the units are square meter/gram
             It should be defined only for electrostatic independent primary species
         '''
-        self.sp_surf_area = Specific_Area
+        self.sp_surf_area = float(Specific_Area)
         
     def solid_concentration(self, Solid_or_SolidConcentration):
         '''
@@ -179,7 +179,7 @@ class Surf_species (Species):
             It is assume here that the units are square gram or grams/l or grams/kgwater. User must be aware of the proper units
             It should be defined only for electrostatic independent primary species
         '''
-        self.solid_concentration_or_grams = Solid_or_SolidConcentration
+        self.solid_concentration_or_grams = float(Solid_or_SolidConcentration)
         
     def capacitance_1 (self, Capacitance_value):
         '''
@@ -188,4 +188,4 @@ class Surf_species (Species):
             The units are C/m^2
         '''
         
-        self.C1 = Capacitance_value
+        self.C1 = float(Capacitance_value)

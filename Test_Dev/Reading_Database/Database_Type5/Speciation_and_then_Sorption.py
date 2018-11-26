@@ -154,3 +154,12 @@ print(np.array_equal(CS.S, CS_S))
 
 CS.create_U ()
 print(CS.U)
+CS.create_log_k_vector()
+
+        #if type_I == 5:
+            # Case example 5
+            # c_ = [H+, AsO4-3, SurfOH, Boltzman_SurfOH, OH-, H3AsO4, HAsO4-2, H2AsO4-, SurfOH2+, SurfO-, SurfH2AsO4, SurfHAsO4-, SurfOHAsO4-3]
+#c_guess = np.array([7.864e-09, 2.626e-28, 5.373e-02, 9.975e-01, 1.315e-06, 5.634e-32, 6.126e-25, 4.211e-26, 8.133e-03, 8.133e-03, 1.219e-10, 2.488e-08, 4.910e-19])
+c_guess = np.array([7.864e-09, 2.626e-28, 5.373e-02, 2.459e-07, 1.315e-06, 5.634e-32, 6.126e-25, 4.211e-26, 8.133e-03, 8.133e-03, 1.219e-10, 2.488e-08, 4.910e-19])
+CS.speciation_Westall1980_CCM (c_guess = c_guess)
+CS.print_speciation()
