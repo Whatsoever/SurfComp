@@ -140,7 +140,7 @@ class ChemSys_Surf (Database_SC):
         #
         #
         # for the number of rows. Reactions that are aqueous have 0 has stoichiometric value. The stoichiometric values for the added surface potential species is obtained by the type of sorption and b the stoichiometric_value and the charge.
-        if not hasattr(self, 'pseudoS') or hasattr(self, 'pseudoS'):
+        if not hasattr(self, 'S_electro') or not hasattr(self, 'pseudoS_length_rows'):
             self.create_electro_sorption_stoichiometric_M ()
         
         # defining length and names of columns
@@ -212,6 +212,9 @@ class ChemSys_Surf (Database_SC):
         for i in range(0,self.length_sorpt_pri_sp):
             if isinstance(self.list_sorpt_pri_sp[i].names_Boltz_psi, str):
                 self.names_elec_sorpt.append(self.list_sorpt_pri_sp[i].names_Boltz_psi)
+            if isinstance(self.list_sorpt_pri_sp[i].names_Boltz_psi, list):
+                for j in range(0, len(self.list_sorpt_pri_sp[i].names_Boltz_psi)):
+                    self.names_elec_sorpt.append(self.list_sorpt_pri_sp[i].names_Boltz_psi[j])
         self.length_names_elec_sorpt = len(self.names_elec_sorpt)
         # Block
         if not hasattr(self, 'pseudoS_length_rows'):
@@ -250,6 +253,30 @@ class ChemSys_Surf (Database_SC):
                             n = self.list_sorpt_reactions[i].reaction[j]
                             summ_charges_times_stoichiometric = summ_charges_times_stoichiometric  + (n*z)
                     d[self.length_aq_sec_sp + i] = summ_charges_times_stoichiometric
+        elif type_sorpt == 'TLM':
+            d = np.zeros(((self.length_aq_sec_sp + self.length_sorpt_sec_sp), 3))
+            for i in range(0, self.length_sorpt_sec_sp):
+                if self.list_sorpt_reactions[i].is_species_in_reaction (name_pri_sp):
+                    names_species_in_reaction = [*self.list_sorpt_reactions[i].reaction]
+                    summ_charges_times_stoichiometric_o = 0
+                    summ_charges_times_stoichiometric_b = 0
+                    for j in names_species_in_reaction:
+                        if j in self.names_aq_pri_sp:
+                            z = self.list_aq_pri_sp[self.names_aq_pri_sp.index(j)].charge
+                            n = self.list_sorpt_reactions[i].reaction[j]
+                            if j =='H+' or j == 'OH-':
+                                summ_charges_times_stoichiometric_o = summ_charges_times_stoichiometric_o + (n*z) 
+                            else:
+                                summ_charges_times_stoichiometric_b = summ_charges_times_stoichiometric_b + (n*z) 
+                        elif j in self.names_aq_sec_sp: 
+                            z = self.list_aq_sec_sp[self.names_aq_sec_sp.index(j)].charge
+                            n = self.list_sorpt_reactions[i].reaction[j]
+                            if j =='H+' or j == 'OH-':
+                                summ_charges_times_stoichiometric_o = summ_charges_times_stoichiometric_o + (n*z) 
+                            else:
+                                summ_charges_times_stoichiometric_b = summ_charges_times_stoichiometric_b + (n*z) 
+                    d[self.length_aq_sec_sp + i, 0] = summ_charges_times_stoichiometric_o
+                    d[self.length_aq_sec_sp + i, 1] = summ_charges_times_stoichiometric_b
         return d
     
     

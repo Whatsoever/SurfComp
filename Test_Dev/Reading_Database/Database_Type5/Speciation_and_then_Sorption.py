@@ -163,3 +163,24 @@ CS.create_log_k_vector()
 c_guess = np.array([7.864e-09, 2.626e-28, 5.373e-02, 2.459e-07, 1.315e-06, 5.634e-32, 6.126e-25, 4.211e-26, 8.133e-03, 8.133e-03, 1.219e-10, 2.488e-08, 4.910e-19])
 CS.speciation_Westall1980_CCM (c_guess = c_guess)
 CS.print_speciation()
+
+
+
+
+# Reading input
+infile = 'Type5_Input_SC_TLM.txt'
+# Instantiating input
+list_aq_component, list_aq_value, names_pri_sorpt, list_sorption_comp  = getting_informationSC_input_file_v1 (infile)
+CS1 = ChemSys_Surf()
+CS1.define_system_from_input_and_database ( DS, list_aq_component, list_aq_value, names_pri_sorpt, List_pri_sorpt_class = list_sorption_comp)
+CS1.create_pseudo_S()
+CS1.create_S ()
+CS1_S = np.array([[ 1.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  0., 0.,  0.], [-3., -1.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,0.,  0.], [-1., -1.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0.,  0., 0.,  0.], \
+                    [-2., -1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0., 0.,  0.], [-1.,  0., -1., -1.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0., 0.,  0.], [1.,  0., -1.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0., 0.,  0], \
+                    [-2., -1., -1., -3.,  3.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  1., 0.,  0.], [-1., -1., -1., -2.,  3.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  0., 1.,  0.], [0., -1., -1.,  0.,  3.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,0.,  1]])
+
+print(np.array_equal(CS1.S, CS1_S))
+
+
+CS1.create_U ()
+CS.create_log_k_vector()

@@ -149,6 +149,8 @@ class Surf_species (Species):
         '''
         if type_sorpt == 'CCM':
             return self.name + '_Boltzf_psi0'               # Boltzf_psi0 stands for Boltzman factor of the psi which is equal to
+        elif type_sorpt == 'TLM':
+            return [self.name + '_Boltzf_psi_0', self.name + '_Boltzf_psi_beta', self.name + '_Boltzf_psi_diffuse']
         
         
     # In order to solve the speciation problem with sorption, the number of total moles of the component must be known.
@@ -189,3 +191,12 @@ class Surf_species (Species):
         '''
         
         self.C1 = float(Capacitance_value)
+        
+    def capacitance_2 (self, Capacitance_value):
+        '''
+            These parameter is defined to the TLM model 
+            It is obviously a Capacitance, therefore has units.
+            The units are C/m^2
+        '''
+        
+        self.C2 = float(Capacitance_value)

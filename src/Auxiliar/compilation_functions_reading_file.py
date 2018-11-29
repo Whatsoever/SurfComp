@@ -234,6 +234,9 @@ def read_block_Sorption (list_sorption):
             elif words_line[0] == '-C1':
                 Sorpt_pri_sp.capacitance_1(words_line[1])
                 line_counter += 1
+            elif words_line[0] == '-C2':
+                Sorpt_pri_sp.capacitance_2(words_line[1])
+                line_counter += 1
             else:
                 Sorpt_pri_sp = Surf_species(words_line[0])
                 names_pri_sorpt.append(words_line[0])
