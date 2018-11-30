@@ -183,4 +183,8 @@ print(np.array_equal(CS1.S, CS1_S))
 
 
 CS1.create_U ()
-CS.create_log_k_vector()
+CS1.create_log_k_vector()
+# c_ = [H+, AsO4-3, SurfOH, Boltzman_SurfOH_0, Boltzmann_SurfOH_b, Boltzman_Surf_D, OH-, H3AsO4, HAsO4-2, H2AsO4-, SurfOH2+, SurfO-, SurfH2AsO4, SurfHAsO4-, SurfOHAsO4-3]
+c_guess = np.array([6.983e-10, 5.655e-27, 6.883e-02, 2.007e+2, 6.342e-01, 7.252e-01, 1.459e-05, 9.293e-34,1.225e-24, 7.706e-27, 5.925e-04, 5.789e-04, 2.025e-09, 2.298e-08, 5.638e-17])
+CS1.speciation_Westall1980_TLM ( c_guess = c_guess)
+CS1.print_speciation()

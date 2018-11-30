@@ -39,6 +39,7 @@ class ChemSys_Surf (Database_SC):
         self.Faraday_constant = 96485.3328959 # C/mol
         self.temperature = (273.15+25)   # It assumed that initially we are at T=25°C and we assume atmospheric pressure for dielectric and other constants
         self.universal_gas_constant = 8.314472  # J/(K*mol)
+        self.permittivity_free_space = 8.854187871e-12## Farrads = F --> F/m = C^2/(J*m) ALSO called vacuum permittivity, electri constant or distributed capacitance of the vacuum
         self.calculate_dielectric_constant()
         pass
     
@@ -393,8 +394,12 @@ class ChemSys_Surf (Database_SC):
         '''
         self.dielectric_constant = e_c
         
-        
-        
+    def set_permittivity_free_space (self, eo):
+        '''
+            Set permittivity of the free space, or distributed capacitance of the vacuum or vacuum permittivity etc
+            Not recommended to be used. Unless sure of what are you doing
+        '''
+        self.permittivity_free_space = eo
         
         
         
@@ -471,11 +476,11 @@ class ChemSys_Surf (Database_SC):
         pos_start_elec = self.length_aq_pri_sp + self.length_sorpt_pri_sp
         pos_end_elec = self.length_aq_pri_sp + self.length_sorpt_pri_sp + self.length_names_elec_sorpt
         S1, S2 = self.separte_S_into_S1_and_S2()
+        sorpt_u_vector = self.create_sorpt_vec()
+        T_chem = np.concatenate ((self.aq_u_vector, sorpt_u_vector))
         # instantiation variables for loop
         counter_iterations = 0
         err = tolerance + 1
-        sorpt_u_vector = self.create_sorpt_vec()
-        T_chem = np.concatenate ((self.aq_u_vector, sorpt_u_vector))
         while err>tolerance and counter_iterations < max_iterations:
             # Calculate U vector [If I am not wrong T_sigma must be calculated at every step, since it depends somehow in the surface potential, and it is unknown]
             u_electro = self.calculate_u_electro(c_n[pos_start_elec:pos_end_elec])
@@ -483,7 +488,7 @@ class ChemSys_Surf (Database_SC):
             # Calculate f or better said in this specific case Y
             Y = self.U.dot(c_n) - T
             # Calculate Z
-            Z = self.Jacobian_Speciation_CCM_Westall1980(c_n, pos_start_elec, pos_end_elec)
+            Z = self.Jacobian_Speciation_Westall1980(c_n, pos_start_elec, pos_end_elec)
             # Calculating the diff, Delta_X
             # In the paper Delta_X is X_old - X_new or as they called X_original - X_improved.
             # I am writing X_new- X-old, hence I use -Y instead of Y.
@@ -503,11 +508,65 @@ class ChemSys_Surf (Database_SC):
             c_n[0:pos_end_elec] = c_n[0:pos_end_elec] + Del_mul*delta_X   # Update primary species
             log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_n[0:pos_end_elec])))      # Update secondary
             c_n[pos_end_elec:] =10**log_c2
+            counter_iterations += 1
         if counter_iterations >= max_iterations:
             raise ValueError('Max number of iterations surpassed.')
         self.c = c_n
         return c_n
-                
+     
+    def speciation_Westall1980_TLM (self, tolerance = 1e-6, max_iterations = 100, c_guess = None):
+        '''
+            Implementation of the algorithm given in "Chemical Equilibrium Including Adsorption on Charged Surfaces" Westall, 1980
+            ages 37-to-39
+        '''
+        # instantiation of unknowns
+        if np.any(c_guess == None):
+            c_guess = self.instantiation_step (type_I = 1)
+        c_n = c_guess
+        pos_start_elec = self.length_aq_pri_sp + self.length_sorpt_pri_sp
+        pos_end_elec = self.length_aq_pri_sp + self.length_sorpt_pri_sp + self.length_names_elec_sorpt
+        
+        S1, S2 = self.separte_S_into_S1_and_S2()
+        sorpt_u_vector = self.create_sorpt_vec()
+        T_chem = np.concatenate ((self.aq_u_vector, sorpt_u_vector))
+        # instantation variables loop
+        counter_iterations = 0
+        err = tolerance + 1
+        while err>tolerance and counter_iterations < max_iterations:
+            # Calculate U vector [If I am not wrong T_sigma must be calculated at every step, since it depends somehow in the surface potential, and it is unknown]
+            u_electro = self.calculate_u_electro(c_n[pos_start_elec:pos_end_elec])
+            T = np.concatenate ((T_chem, u_electro))
+            # Calculate f or better said in this specific case Y
+            Y = self.U.dot(c_n) - T
+            # Calculate Z
+            Z = self.Jacobian_Speciation_Westall1980(c_n, pos_start_elec, pos_end_elec)
+            # Calculating the diff, Delta_X
+            # In the paper Delta_X is X_old - X_new or as they called X_original - X_improved.
+            # I am writing X_new- X-old, hence I use -Y instead of Y.
+            delta_X = np.linalg.solve(Z,-Y)
+        
+            # The error will be equal to the maximum increment
+            err = max(abs(delta_X))
+        
+            # Relaxation factor borrow from Craig M.Bethke to avoid negative values
+            max_1 = 1
+            max_2 =np.amax(-2*np.multiply(delta_X, 1/c_n[0:pos_end_elec]))
+            Max_f = np.amax([max_1, max_2])
+            Del_mul = 1/Max_f
+        
+        
+            # Update
+            c_n[0:pos_end_elec] = c_n[0:pos_end_elec] + Del_mul*delta_X   # Update primary species
+            log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_n[0:pos_end_elec])))      # Update secondary
+            c_n[pos_end_elec:] =10**log_c2
+            counter_iterations += 1
+        if counter_iterations >= max_iterations:
+            raise ValueError('Max number of iterations surpassed.')
+        self.c = c_n
+        return c_n
+        
+
+               
                 
     def calculate_u_electro (self, unknonw_boltzman_vect):
         '''
@@ -522,7 +581,21 @@ class ChemSys_Surf (Database_SC):
                 charge_surface = self.list_sorpt_pri_sp[i].C1*psi
                 T = charge_surface*((self.list_sorpt_pri_sp[i].sp_surf_area*self.list_sorpt_pri_sp[i].solid_concentration_or_grams)/self.Faraday_constant)
                 T_sigma.append(T)
-            
+                pos_point_electro_unknown += 1
+            elif self.list_sorpt_pri_sp[i].type_sorption == 'TLM':
+                x = unknonw_boltzman_vect [pos_point_electro_unknown : (pos_point_electro_unknown+3)]
+                psi = self.Boltzman_factor_2_psi(x)
+                charge_surface_0 = self.list_sorpt_pri_sp[i].C1*(psi[0]-psi[1])
+                charge_surface_b = self.list_sorpt_pri_sp[i].C1*(psi[1]-psi[0]) + self.list_sorpt_pri_sp[i].C2*(psi[1]-psi[2])
+                charge_surface_d = self.list_sorpt_pri_sp[i].C2*(psi[2]-psi[1])
+                #charge_surface_d = self.list_sorpt_pri_sp[i].C2*(psi[2]-psi[0])
+                D = (self.list_sorpt_pri_sp[i].sp_surf_area*self.list_sorpt_pri_sp[i].solid_concentration_or_grams)/self.Faraday_constant
+                T_0 = charge_surface_0*D
+                T_b = charge_surface_b*D
+                T_d = charge_surface_d*D
+                T_sigma.append(T_0); T_sigma.append(T_b); T_sigma.append(T_d)
+                pos_point_electro_unknown += 3
+        print([T_sigma])    
         return np.array(T_sigma)
         
         
@@ -537,7 +610,7 @@ class ChemSys_Surf (Database_SC):
             T_sorpt.append(self.list_sorpt_pri_sp[i].T_solid)
         return T_sorpt
         
-    def Jacobian_Speciation_CCM_Westall1980(self, C, n_aq_plus_n_sorpt, n_primaryspecies):
+    def Jacobian_Speciation_Westall1980(self, C, n_aq_plus_n_sorpt, n_primaryspecies):
         '''
             The jacobian matrix following an implementation based on the algorithm of  Westall (1980) 
             "Chemical equilibrium Including Adsorption on Charged Surfaces"
@@ -553,16 +626,78 @@ class ChemSys_Surf (Database_SC):
         # According to the point 2 of Table III of Westall the term C*sa/F*RT/Funknwon must be added to the electrostatic part
         # I am supposing here that all the sorption phases are CCM
         for i in range(0, self.length_sorpt_pri_sp):
+            pos_unknown_vector = n_aq_plus_n_sorpt
+            # I am supposing here that the sorption phases are CCM
             if self.list_sorpt_pri_sp[i].type_sorption == 'CCM':
-                p = i + n_aq_plus_n_sorpt
                 D1 = self.universal_gas_constant*self.temperature
-                D2 = self.Faraday_constant*C[i]
+                D2 = self.Faraday_constant*C[pos_unknown_vector]
                 F = ((self.list_sorpt_pri_sp[i].sp_surf_area*self.list_sorpt_pri_sp[i].solid_concentration_or_grams)/self.Faraday_constant)
-                Z[p,p] = Z[p,p] + (self.list_sorpt_pri_sp[i].C1*F)*(D1/D2)
+                Z[pos_unknown_vector,pos_unknown_vector] = Z[pos_unknown_vector, pos_unknown_vector] + (self.list_sorpt_pri_sp[i].C1*F)*(D1/D2)
+                pos_unknown_vector += 1
+            # I am supposing here that the sorption phases are TLM
+            elif self.list_sorpt_pri_sp[i].type_sorption == 'TLM':
+                
+                D1 = self.universal_gas_constant*self.temperature
+                D2 = self.Faraday_constant*C[pos_unknown_vector]
+                D3 = self.Faraday_constant*C[pos_unknown_vector+1]
+                D4 = self.Faraday_constant*C[pos_unknown_vector+2]
+                F = ((self.list_sorpt_pri_sp[i].sp_surf_area*self.list_sorpt_pri_sp[i].solid_concentration_or_grams)/self.Faraday_constant)
+                # O-plane
+                # plane 0 - 0
+                Z[pos_unknown_vector,pos_unknown_vector] = Z[pos_unknown_vector, pos_unknown_vector] + (self.list_sorpt_pri_sp[i].C1*F)*(D1/D2)
+                # plane 0 - b
+                Z[pos_unknown_vector,pos_unknown_vector+1] = Z[pos_unknown_vector, pos_unknown_vector+1] - (self.list_sorpt_pri_sp[i].C1*F)*(D1/D3)
+                # plane 0 - d
+                # plane b - 0
+                Z[pos_unknown_vector + 1,pos_unknown_vector] = Z[pos_unknown_vector + 1,pos_unknown_vector] - (self.list_sorpt_pri_sp[i].C1*F)*(D1/D2)
+                # plane b - b
+                Z[pos_unknown_vector + 1,pos_unknown_vector + 1] = Z[pos_unknown_vector + 1,pos_unknown_vector + 1] + ((self.list_sorpt_pri_sp[i].C1+self.list_sorpt_pri_sp[i].C2)*F)*(D1/D3)
+                # plane b - d
+                Z[pos_unknown_vector + 1,pos_unknown_vector + 2] = Z[pos_unknown_vector + 1,pos_unknown_vector + 2] - (self.list_sorpt_pri_sp[i].C2*F)*(D1/D4)
+                # plane d - 0
+                # plane d - b
+                Z[pos_unknown_vector + 2,pos_unknown_vector + 1] = Z[pos_unknown_vector + 2,pos_unknown_vector + 1] - (self.list_sorpt_pri_sp[i].C2*F)*(D1/D3)
+                # plane d - d
+                    # A = -F/(2*R*T)
+                param = self.Faraday_constant/(2*(self.universal_gas_constant*self.temperature))
+                A = -param
+                #
+                pos_C = self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_names_elec_sorpt
+                C_aq = np.concatenate((C[:self.length_aq_pri_sp], C[pos_C : (pos_C + self.length_aq_sec_sp)]))
+                #
+                I = self.calculate_ionic_strength(C_aq)
+                B = np.sqrt(8*self.permittivity_free_space*self.dielectric_constant*self.universal_gas_constant*self.temperature*I)
+                psi_d = self.Boltzman_factor_2_psi(C[pos_unknown_vector+2])
+                par_C = param*psi_d
+                C = np.cosh(par_C)
+                F_d = A*B*C
+                Z[pos_unknown_vector + 2,pos_unknown_vector + 2] = F_d + (self.list_sorpt_pri_sp[i].C2*F)*(D1/D4)
+                
+                pos_unknown_vector +=3
+                
         return Z
 
         
-        
+    def calculate_ionic_strength (self,c):
+        '''
+            Calculate the ion strength: The vector C is supossed to be a vectorof concentrations that contains first the aqueous primary species followed by the aqueous secondary species. 
+            Both primary and secondary species are supossed to be order in the same order that the one of the class, namely self.
+        '''
+        Ionic_s=0
+        count = 0
+        for i in range(0, self.length_aq_pri_sp): 
+            # if type(self.list_aq_pri_sp[i]) == Aq_Species:
+            z = self.list_aq_pri_sp[i].charge
+            Ionic_s = Ionic_s + c[count]*z*z
+            count += 1
+        for i in range(0, self.length_aq_sec_sp):
+        # if type(self.list_aq_sec_sp[i]) == Aq_Species:
+            z = self.list_aq_sec_sp[i].charge
+            Ionic_s = Ionic_s + c[count]*z*z
+            count += 1
+         
+        Ionic_s = 0.5*Ionic_s
+        return Ionic_s
         
         ###################################################
         ################################
