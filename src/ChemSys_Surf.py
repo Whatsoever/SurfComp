@@ -41,6 +41,7 @@ class ChemSys_Surf (Database_SC):
         self.universal_gas_constant = 8.314472  # J/(K*mol)
         self.permittivity_free_space = 8.854187871e-12## Farrads = F --> F/m = C^2/(J*m) ALSO called vacuum permittivity, electri constant or distributed capacitance of the vacuum
         self.calculate_dielectric_constant()
+        self.ionic_strength_constant = False
         pass
     
     # Instantiation of main attributes
@@ -117,7 +118,12 @@ class ChemSys_Surf (Database_SC):
         self.set_vector_aqueous_component_value(list_aq_val)    
             
         
-        
+    def set_constant_ionic_strength (self, givenvalue):
+        '''
+            set the ionic_strength to a given value
+        '''
+        self.ionic_strength_constant = True
+        self.fix_ionic_strength = givenvalue
     # Matrix_Creation_From_Database
     def create_S (self):
         # First we create the pseudoS matrix (if it does not exist) which has the following structure:
@@ -483,7 +489,7 @@ class ChemSys_Surf (Database_SC):
         err = tolerance + 1
         while err>tolerance and counter_iterations < max_iterations:
             # Calculate U vector [If I am not wrong T_sigma must be calculated at every step, since it depends somehow in the surface potential, and it is unknown]
-            u_electro = self.calculate_u_electro(c_n[pos_start_elec:pos_end_elec])
+            u_electro = self.calculate_u_electro(c_n[pos_start_elec:pos_end_elec], c_n)
             T = np.concatenate ((T_chem, u_electro))
             # Calculate f or better said in this specific case Y
             Y = self.U.dot(c_n) - T
@@ -534,7 +540,7 @@ class ChemSys_Surf (Database_SC):
         err = tolerance + 1
         while err>tolerance and counter_iterations < max_iterations:
             # Calculate U vector [If I am not wrong T_sigma must be calculated at every step, since it depends somehow in the surface potential, and it is unknown]
-            u_electro = self.calculate_u_electro(c_n[pos_start_elec:pos_end_elec])
+            u_electro = self.calculate_u_electro(c_n[pos_start_elec:pos_end_elec], c_n)
             T = np.concatenate ((T_chem, u_electro))
             # Calculate f or better said in this specific case Y
             Y = self.U.dot(c_n) - T
@@ -544,10 +550,10 @@ class ChemSys_Surf (Database_SC):
             # In the paper Delta_X is X_old - X_new or as they called X_original - X_improved.
             # I am writing X_new- X-old, hence I use -Y instead of Y.
             delta_X = np.linalg.solve(Z,-Y)
-        
+            #print(delta_X)
             # The error will be equal to the maximum increment
             err = max(abs(delta_X))
-        
+            print(err)
             # Relaxation factor borrow from Craig M.Bethke to avoid negative values
             max_1 = 1
             max_2 =np.amax(-2*np.multiply(delta_X, 1/c_n[0:pos_end_elec]))
@@ -568,7 +574,7 @@ class ChemSys_Surf (Database_SC):
 
                
                 
-    def calculate_u_electro (self, unknonw_boltzman_vect):
+    def calculate_u_electro (self, unknonw_boltzman_vect, C):
         '''
             T_depends in the surface sorption type somehow
         '''
@@ -593,9 +599,17 @@ class ChemSys_Surf (Database_SC):
                 T_0 = charge_surface_0*D
                 T_b = charge_surface_b*D
                 T_d = charge_surface_d*D
-                T_sigma.append(T_0); T_sigma.append(T_b); T_sigma.append(T_d)
+                # In T_d, it is assigned Y_d equation 14 from Westall
+                pos_C = self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_names_elec_sorpt
+                C_aq = np.concatenate((C[:self.length_aq_pri_sp], C[pos_C : (pos_C + self.length_aq_sec_sp)]))
+                I = self.calculate_ionic_strength(C_aq)
+                B = np.sqrt(8*self.permittivity_free_space*self.dielectric_constant*self.universal_gas_constant*self.temperature*I)
+                E = np.sinh((self.Faraday_constant*psi[2])/(2*(self.universal_gas_constant*self.temperature)))
+                Y = B*E
+                #
+                T_sigma.append(T_0); T_sigma.append(T_b); T_sigma.append(Y+T_d)
                 pos_point_electro_unknown += 3
-        print([T_sigma])    
+        #print([T_sigma])    
         return np.array(T_sigma)
         
         
@@ -683,6 +697,8 @@ class ChemSys_Surf (Database_SC):
             Calculate the ion strength: The vector C is supossed to be a vectorof concentrations that contains first the aqueous primary species followed by the aqueous secondary species. 
             Both primary and secondary species are supossed to be order in the same order that the one of the class, namely self.
         '''
+        if self.ionic_strength_constant:
+            return self.fix_ionic_strength
         Ionic_s=0
         count = 0
         for i in range(0, self.length_aq_pri_sp): 
