@@ -22,13 +22,48 @@ class ChemSys_Surf (Database_SC):
                 dielectric_constant
                 A_activitypar
                 B_activitypar
+                universal_gas_constant 
+                ionic_strength_constant
+                fix_ionic_strength 
+                S
+                S_electro
+                names_elec_sorpt
+                length_names_elec_sorpt
+                U
+                
             methods:
+                set_S
+                set_vector_aqueous_component_value
+                aq_u_vector
+                set_names_electrostatic_variables
+                set_electro_sorption_stoichiometric_M
+                set_universal_gas_constant
                 set_Faraday_constant
                 set_temperature
                 set_dielectric_constant
+                set_constant_ionic_strength
+                set_permittivity_free_space
                 calculate_dielectric_constant
                 calculate_A_activitypar
                 calculate_B_activitypar
+                calculate_ionic_strength
+                calculate_u_electro 
+                define_system_from_input_and_database
+                create_S
+                create_U
+                remove_electro_mass_from_U
+                separte_S_into_S1_and_S2
+                create_electro_sorption_stoichiometric_M
+                create_stoichiometric_surfacepotential
+                search_index_list_classlist
+                search_index_list_listdictionaryreactions
+                instantiation_step
+                speciation_Westall1980_CCM                                  #   NOTE --> probably speciation_Westall1980_CCM, speciation_Westall1980_TLM  can be unified in one algorithm, so far it is kept separated.
+                speciation_Westall1980_TLM                                  #
+                create_sorpt_vec 
+                Boltzman_factor_2_psi 
+                Jacobian_Speciation_Westall1980
+                print_speciation
                 
         NOTE: Remark that ChemSys_Surf is a daughter class from Database_SC. Therefore, in order to create the pseudo S matrix (The stoichiometric matrix that does not contain the surface potential as unknown). Methods like ...
                 ... set_names_aq_primary_species (names_aq_pri_sp), set_names_aq_secondary_species (names_aq_sec_sp), set_names_sorpt_primary_species (names_sorpt_pri_sp), set_names_sorpt_secondary_species (names_sorpt_sec_sp), set_aq_list_pri_class (list_aq_pri_sp), ...
@@ -244,7 +279,7 @@ class ChemSys_Surf (Database_SC):
     def create_stoichiometric_surfacepotential (self, name_pri_sp, type_sorpt):
         '''
         '''
-        if type_sorpt == 'CCM':
+        if type_sorpt == 'CCM' or type_sorpt == 'DLM':
             d = np.zeros((self.length_aq_sec_sp + self.length_sorpt_sec_sp))
             for i in range(0, self.length_sorpt_sec_sp):
                 if self.list_sorpt_reactions[i].is_species_in_reaction (name_pri_sp):
@@ -284,6 +319,8 @@ class ChemSys_Surf (Database_SC):
                                 summ_charges_times_stoichiometric_b = summ_charges_times_stoichiometric_b + (n*z) 
                     d[self.length_aq_sec_sp + i, 0] = summ_charges_times_stoichiometric_o
                     d[self.length_aq_sec_sp + i, 1] = summ_charges_times_stoichiometric_b
+            
+        
         return d
     
     
@@ -572,7 +609,12 @@ class ChemSys_Surf (Database_SC):
         return c_n
         
 
-               
+    def speciation_Borkovec_1983_DLM (self, tolerance = 1e-6, max_iterations = 100, c_guess = None):      
+        '''
+            Implementation of the algorithm given in "Solution of the poisson-boltzman equation for surface excesses of ions in the diffuse layer at the oxide-electrolyte interface" Borkovec 1983
+        '''
+        
+        
                 
     def calculate_u_electro (self, unknonw_boltzman_vect, C):
         '''
@@ -613,18 +655,18 @@ class ChemSys_Surf (Database_SC):
         return np.array(T_sigma)
         
         
-    def Boltzman_factor_2_psi(self, x):
+    def Boltzman_factor_2_psi (self, x):
         D = self.universal_gas_constant*self.temperature
         psi = - np.log(x)*(D/self.Faraday_constant)
         return psi
 
-    def  create_sorpt_vec(self):            
+    def  create_sorpt_vec (self):            
         T_sorpt = []
         for i in range(0, self.length_sorpt_pri_sp):
             T_sorpt.append(self.list_sorpt_pri_sp[i].T_solid)
         return T_sorpt
         
-    def Jacobian_Speciation_Westall1980(self, C, n_aq_plus_n_sorpt, n_primaryspecies):
+    def Jacobian_Speciation_Westall1980 (self, C, n_aq_plus_n_sorpt, n_primaryspecies):
         '''
             The jacobian matrix following an implementation based on the algorithm of  Westall (1980) 
             "Chemical equilibrium Including Adsorption on Charged Surfaces"
@@ -720,7 +762,7 @@ class ChemSys_Surf (Database_SC):
         ########################### Postprocessing
         ###################################################
         
-    def print_speciation(self):
+    def print_speciation (self):
         #ionic_strength = self.calculate_ionic_strength (self.c)
         #log_activity_coefficient = self.calculate_log_activity_coefficient (ionic_strength, self.c)
         #v_activity = self.c*(10**log_activity_coefficient)
