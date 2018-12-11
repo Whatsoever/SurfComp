@@ -93,4 +93,4 @@ CS.create_log_k_vector()
 # c_ = [H+, AsO4-3, SurfOH, Boltzman_SurfOH, OH-, H3AsO4, HAsO4-2, H2AsO4-, SurfOH2+, SurfO-, SurfH2AsO4, SurfHAsO4-, SurfOHAsO4-3]
 #c_guess = np.array([7.864e-09, 2.626e-28, 5.373e-02, 9.975e-01, 1.315e-06, 5.634e-32, 6.126e-25, 4.211e-26, 8.133e-03, 8.133e-03, 1.219e-10, 2.488e-08, 4.910e-19])
 
-CS.print_speciation()
+#CS.print_speciation()

@@ -20,6 +20,7 @@ class ChemSys_Surf (Database_SC):
                 Faraday_constant
                 temperature
                 dielectric_constant
+                permittivity_free_space
                 A_activitypar
                 B_activitypar
                 universal_gas_constant 
@@ -30,6 +31,10 @@ class ChemSys_Surf (Database_SC):
                 names_elec_sorpt
                 length_names_elec_sorpt
                 U
+                A_Borkovec
+                B_Borkovec
+                A_Borkovec_columns
+                A_Borkovec_rows
                 
             methods:
                 set_S
@@ -64,6 +69,8 @@ class ChemSys_Surf (Database_SC):
                 Boltzman_factor_2_psi 
                 Jacobian_Speciation_Westall1980
                 print_speciation
+                speciation_Borkovec_1983_DLM
+                
                 
         NOTE: Remark that ChemSys_Surf is a daughter class from Database_SC. Therefore, in order to create the pseudo S matrix (The stoichiometric matrix that does not contain the surface potential as unknown). Methods like ...
                 ... set_names_aq_primary_species (names_aq_pri_sp), set_names_aq_secondary_species (names_aq_sec_sp), set_names_sorpt_primary_species (names_sorpt_pri_sp), set_names_sorpt_secondary_species (names_sorpt_sec_sp), set_aq_list_pri_class (list_aq_pri_sp), ...
@@ -208,7 +215,7 @@ class ChemSys_Surf (Database_SC):
             self.create_S ()
             
         S1, S2 = self.separte_S_into_S1_and_S2()
-        npri = self.length_aq_pri_sp +self.length_sorpt_pri_sp + len(self.names_elec_sorpt)
+        npri = self.length_aq_pri_sp +self.length_sorpt_pri_sp + self.length_names_elec_sorpt
         I = np.identity(npri)
         Stop=-np.matmul(S1.transpose(),np.linalg.inv(S2.transpose()))
         U = np.concatenate((I, Stop), axis=1)
@@ -222,7 +229,7 @@ class ChemSys_Surf (Database_SC):
             This methods should be used only in create_U not outside it.
         '''
         npri = self.length_aq_pri_sp +self.length_sorpt_pri_sp
-        for i in range(0, len(self.names_elec_sorpt)):
+        for i in range(0, self.length_names_elec_sorpt):
             U[npri, npri] = 0
             npri +=  1
         return U
@@ -609,13 +616,85 @@ class ChemSys_Surf (Database_SC):
         return c_n
         
 
-    def speciation_Borkovec_1983_DLM (self, tolerance = 1e-6, max_iterations = 100, c_guess = None):      
+    def speciation_Borkovec_1983_DLM (self, tolerance = 1e-6, max_iterations = 100, c_guess = None, A_Borkovec = None, names_col = None, names_row = None ):      
         '''
             Implementation of the algorithm given in "Solution of the poisson-boltzman equation for surface excesses of ions in the diffuse layer at the oxide-electrolyte interface" Borkovec 1983
+            There are some parts of this algorithm that are not clear for me, hence I will try to implement it as it is given in the paper.
         '''
+        # modified matrices must be given:
+        if A_Borkovec == None and not hasattr(self, 'A_Borkovec'):
+            self.create_A_Borkovec()
+        A = self.A_Borkovec
+        if names_col == None:
+            name_col = self.A_Borkovec_columns
+        if names_row == None:
+            name_row = self.A_Borkovec_rows
+        
+        #  The upper part can be expanded to add more outside inputs (Maybe later)
+        # for equaiton 20, I need the right K
+        S1, S2 = self.separte_S_into_S1_and_S2()
+        l_k_comp = np.matmul(np.lialg.inv(S2),self.log_k_vector)
         
         
-                
+        K_eqn20_bulk = np.concatenate((np.zeros(self.length_aq_pri_sp), l_k_comp(:self.length_aq_sec_sp)))
+        K_eqn20_surface = np.concatenate((np.zeros(self.length_sorpt_pri_sp), l_k_comp(self.length_aq_sec_sp:)))
+        K_eqn20 = np.concatenate((K_eqn20_bulk, K_eqn20_surface))
+        # Borkovec_1983- QUOTE (pag. 333) : To circumvent these difficulties one can use an iterative procedure consisting of an initial step to establish electroneutrality in the bulk, and then alternately (i) recomputing g with 
+        #                                   the electroneutrality condition fulfilled, and ii) using the constant values of g in solving the equilibrium problems.
+        # instantation variables loop
+        counter_iterations = 0
+        err = tolerance + 1
+        ''' 
+            Borkovec_1983 - QUOTE (page. 334) --> The initial step is made by treating the asymmetric electrolyte as a symmetric electrolyte of the same ionic strength, using eqn. (16) to evaluate g, and solving the equilibrium problem defined by eqns. (20)
+            and (22). There is of course no requirement for electroneutrality when evaluating g by eqn. (16). Once the equilibrium problem is solved, albeit with only approximate values of g, the electroneutrality condition in the bulk is fulfilled, and corrected values
+            of g can be evaluated from eqn. (11)
+        '''
+        # The values of the vector X must be instantiated
+        sorpt_u_vector = self.create_sorpt_vec()
+        T_chem = np.concatenate ((self.aq_u_vector, sorpt_u_vector))
+        T = np.concatenate(T_chem, 0)
+        # concentration of the components_ initial instantiation
+        Xd = 1;   # <-- This part might be changed by an instantiation function
+        X = np.concatenate(T_chem, Xd)
+        # initial guess, concentration species
+        c = K_eqn20 + np.matmul(A,X)
+        while err>tolerance and counter_iterations < max_iterations:
+        # g must be calculated to create the matrix B
+        g_vec = self.calculate_g_Borkovec_1983_eqn_16()
+        
+    def create_k_Borkovec_1983_eqn20(self):
+        S1, S2 = self.separte_S_into_S1_and_S2()
+        
+    
+    def create_A_Borkovec (self):
+        if not hasattr(self, 'U'):
+            self.create_U ()
+        # HERE THE COLUMNS OF U are defined in the following way: Aqueous primary species (components) + Sorption primary species (components) + Electro components + Aqueous secondary species + Sorption Secondary species
+        # The rows are the components which are formulated in the order: Aqueous primary species (components) + Sorption primary species (components) + Electro components
+        #
+        # Two steps are necessary (Assuming that what is written about U is true):
+        #                       1) U must be transpose
+        A_temp = self.U.transpose()
+        
+        # Now A_temp is almost A: In the columns it has: Aqueous primary species (components) + Sorption primary species (components) + Electro components
+        # but the rows are in the following order: Aqueous primary species (components) + Sorption primary species (components) + Electro components + Aqueous secondary species + Sorption Secondary species
+        # The second step:
+        #                   2) The order of the rows must be modified to be: Bulk part, basically aqueous part + Surface part, basically surface species
+        #                      Therefore it is decided to reorder in the folllowing way: Bulk: [Aqueous primary species (components)+ Aqueous secondary species] + Surface : [ Sorption primary species (components) +  Sorption Secondary species]
+        # Furthermore, the row regarding the electrostatical potential that can be found in A_temp (A row made up of 0s) must be removed.
+        n_comp = self.length_aq_pri_sp + self.length_sorpt_pri_sp + self.length_names_elec_sorpt
+        ABulk = np.concatenate((A_temp[:self.length_aq_pri_sp, :], A_temp[n_comp : n_comp + self.length_aq_sec_sp, :]))
+        ASurface = np.concatenate ((A_temp[self.length_aq_pri_sp: self.length_aq_pri_sp + self.length_sorpt_pri_sp, :], A_temp[n_comp + self.length_aq_sec_sp :, :]))
+        
+        self.A_Borkovec = np.concatenate((ABulk, ASurface))
+        self.A_Borkovec_columns = self.names_aq_pri_sp + self.names_sorpt_pri_sp + self.names_elec_sorpt
+        self.A_Borkovec_rows = self.names_aq_pri_sp + self.names_aq_sec_sp + self.names_sorpt_pri_sp + self.names_sorpt_sec_sp
+        
+        
+        
+        
+        
+        
     def calculate_u_electro (self, unknonw_boltzman_vect, C):
         '''
             T_depends in the surface sorption type somehow
