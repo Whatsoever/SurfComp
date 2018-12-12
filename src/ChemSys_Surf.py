@@ -70,7 +70,7 @@ class ChemSys_Surf (Database_SC):
                 Jacobian_Speciation_Westall1980
                 print_speciation
                 speciation_Borkovec_1983_DLM
-                
+                get_z_vector
                 
         NOTE: Remark that ChemSys_Surf is a daughter class from Database_SC. Therefore, in order to create the pseudo S matrix (The stoichiometric matrix that does not contain the surface potential as unknown). Methods like ...
                 ... set_names_aq_primary_species (names_aq_pri_sp), set_names_aq_secondary_species (names_aq_sec_sp), set_names_sorpt_primary_species (names_sorpt_pri_sp), set_names_sorpt_secondary_species (names_sorpt_sec_sp), set_aq_list_pri_class (list_aq_pri_sp), ...
@@ -331,7 +331,15 @@ class ChemSys_Surf (Database_SC):
         return d
     
     
-    
+    def get_z_vector(self):
+        z =[]
+        for i in range(0, self.length_aq_pri_sp): 
+            # if type(self.list_aq_pri_sp[i]) == Aq_Species:
+            z.append(self.list_aq_pri_sp[i].charge)
+            
+        for i in range(0, self.length_aq_sec_sp):
+            z.append(self.list_aq_sec_sp[i].charge)
+        return z
             
     def search_index_list_classlist (self, list1, list2):
         '''
@@ -633,11 +641,11 @@ class ChemSys_Surf (Database_SC):
         #  The upper part can be expanded to add more outside inputs (Maybe later)
         # for equaiton 20, I need the right K
         S1, S2 = self.separte_S_into_S1_and_S2()
-        l_k_comp = np.matmul(np.lialg.inv(S2),self.log_k_vector)
+        l_k_comp = np.matmul(np.linalg.inv(S2),self.log_k_vector)
         
         
-        K_eqn20_bulk = np.concatenate((np.zeros(self.length_aq_pri_sp), l_k_comp(:self.length_aq_sec_sp)))
-        K_eqn20_surface = np.concatenate((np.zeros(self.length_sorpt_pri_sp), l_k_comp(self.length_aq_sec_sp:)))
+        K_eqn20_bulk = np.concatenate((np.zeros(self.length_aq_pri_sp), l_k_comp[:self.length_aq_sec_sp]))
+        K_eqn20_surface = np.concatenate((np.zeros(self.length_sorpt_pri_sp), l_k_comp[self.length_aq_sec_sp:]))
         K_eqn20 = np.concatenate((K_eqn20_bulk, K_eqn20_surface))
         # Borkovec_1983- QUOTE (pag. 333) : To circumvent these difficulties one can use an iterative procedure consisting of an initial step to establish electroneutrality in the bulk, and then alternately (i) recomputing g with 
         #                                   the electroneutrality condition fulfilled, and ii) using the constant values of g in solving the equilibrium problems.
@@ -652,19 +660,111 @@ class ChemSys_Surf (Database_SC):
         # The values of the vector X must be instantiated
         sorpt_u_vector = self.create_sorpt_vec()
         T_chem = np.concatenate ((self.aq_u_vector, sorpt_u_vector))
-        T = np.concatenate(T_chem, 0)
+        T = np.concatenate((T_chem, np.zeros(self.length_sorpt_pri_sp)))
         # concentration of the components_ initial instantiation
-        Xd = 1;   # <-- This part might be changed by an instantiation function
-        X = np.concatenate(T_chem, Xd)
+        Xd = 1.1;   # <-- This part might be changed by an instantiation function
+        X = np.concatenate((T_chem, np.array([Xd])))
         # initial guess, concentration species
-        c = K_eqn20 + np.matmul(A,X)
+        c = K_eqn20 + np.matmul(A,np.log10(X))      # This part here is equation 20
+        c = 10**c
+        z_vec = self.get_z_vector()
         while err>tolerance and counter_iterations < max_iterations:
-        # g must be calculated to create the matrix B
-        g_vec = self.calculate_g_Borkovec_1983_eqn_16()
+            I = self.calculate_ionic_strength(c[:self.length_aq_pri_sp + self.length_aq_sec_sp]) 
+            # g must be calculated to create the matrix B
+            g_vec = self.calculate_g_vec_Borkovec_1983_eqn_16(I, X[-1])
+            # Now that vector g (assuming symmetrical electrolyte is build I can build the B matrix and find Y)
+            B = self.create_B_Borkovec(A, g_vec)
+            # Calculating Y. The Y is given in equation 22 in Borkovec(1983)
+            Y = np.matmul(B.transpose(), c) - T
+            # Now the jacobian must be created
+            Z = self.create_jacobian_Borkovec_1983_symm(A, B, c, X, I, z_vec ,g_vec)
+            delta_X = np.linalg.solve(Z,-Y)
+            #print(delta_X)
+            # The error will be equal to the maximum increment
+            err = max(abs(delta_X))
+    
+    
+    def create_jacobian_Borkovec_1983_symm (self, A, B, c, X, I, z_vector, g_vector):
+        '''
+            Creating the jacobian for the Newton-Rapshon procedure. The algorithm is given in Borkovec(1983), you need to apply the info of the appendix, plus de info of the paper. 
+            Some parameter are slightly tricky, but it seems that everything is ok, except the alpha parameter that I do no trust.
+            This jacobian is treated as a symmetric electrolyte, namely equations (A.1 -A.4) of the appendix
+            
+            dY/dX = dYj/dXk
+            
+        '''
+        assert len(z_vector)==len(g_vector), " [create_jacobian_Borkovec_1983_symm] vectors of charge and vector of factor g are not equal. Something must be wrong."
+        Nx = len(X)
+        Ns = len(c)
+        n_iprime = len(g_vector)
+        Z = np.zeros((Nx, Nx))
+        # There is a term that is repeated in all part of the matrix, also when k = d
+        #
+        # Sum(bij*aik* ci/Xk)
+        # Such term will be the first to be calculated.
+        for j in range(0, Nx):
+            for k in range(0, Nx):
+                for i in range(0, Ns):  #Sum(bij*aik* ci/Xk)
+                        Z[j, k] = Z[j, k] + B[i,j]*A[i,k]*(c[i]/X[k])
+            if k != (Nx-1):
+                Z[j, k] = Z[j, k] + self.term_A2_and_A3_Borkovec(n_iprime, j, k, A, c, X,g_vector,z_vector, I) 
+            elif k == (Nx-1): #There is one term for all K, except k = d and one for all 
+                Z[j, k] = Z[j, k] + self.term_A4_Borkovec(n_iprime,I, z_vector, X[k], c)
+                    
+        return Z 
         
-    def create_k_Borkovec_1983_eqn20(self):
-        S1, S2 = self.separte_S_into_S1_and_S2()
         
+        
+    def term_A2_and_A3_Borkovec(self, n_iprime, j, k, A, c, X, g_vector,z_vector, I):
+        v = 0
+        R = 0
+        for iprime in range(0, n_iprime):
+            v = v + ((z_vector[iprime]**2)/2)*A[iprime, k]*(c[iprime]/X[k])
+        for iprime in range(0, n_iprime):
+            R = R + c[iprime]*A[iprime, j]*(-g_vector[iprime]/(2*I))*v
+        return R
+    
+    def term_A4_Borkovec(self,  n_iprime, I, z_vector, X_d, c):
+        R = 0
+        '''
+        I THINK THERE IS A TYPO HERE (parameter alpha); I AM USING EQUATION 13 BUT I THINK THE EQUATION IS WRONG: SO I USE A MODIFIED ONE; I MUST ASK THE AUTHORS
+        '''
+        alpha = np.sqrt((self.dielectric_constant*self.permittivity_free_space)/(2*self.universal_gas_constant*self.temperature))    
+        for iprime in range(0, n_iprime):
+            dgiprime_dXd = calculate_dg_dXd_Borkovec_1983_eqn_16 (I, alpha, X_d, z_vector[iprime])
+            R = R + c[iprime]*z_vector[iprime]*dgiprime_dXd
+    
+    def calculate_g_vec_Borkovec_1983_eqn_16 (self, I, X_d):    
+        '''
+            It calculates the g factors of the paper of Borkovec (1983) using equation 16. 
+            Precondition: The concentration given is order: First primary aqueous species, in the same order that the list of the class. Then secondary species, in the same order as they are saved in the class.
+        '''
+        g = []
+        
+        '''
+        I THINK THERE IS A TYPO HERE (parameter alpha); I AM USING EQUATION 13 BUT I THINK THE EQUATION IS WRONG: SO I USE A MODIFIED ONE; I MUST ASK THE AUTHORS
+        '''
+        alpha = np.sqrt((self.dielectric_constant*self.permittivity_free_space)/(2*self.universal_gas_constant*self.temperature))       
+        
+        
+        for i in range(0, self.length_aq_pri_sp): 
+            # if type(self.list_aq_pri_sp[i]) == Aq_Species:
+            z = self.list_aq_pri_sp[i].charge
+            g.append(self.calculate_g_Borkovec_1983_eqn_16 ( I, alpha, X_d, z))
+        for i in range(0, self.length_aq_sec_sp):
+        # if type(self.list_aq_sec_sp[i]) == Aq_Species:
+            z = self.list_aq_sec_sp[i].charge
+            g.append(self.calculate_g_Borkovec_1983_eqn_16 ( I, alpha, X_d, z))
+        
+        return g
+            
+    def  calculate_g_Borkovec_1983_eqn_16 (self, I, alpha, X_d, z):
+        g = 2*alpha*(1/np.sqrt(I))*((X_d**(z/2))-1)*self.list_sorpt_pri_sp[0].sp_surf_area*(self.list_sorpt_pri_sp[0].solid_concentration_or_grams/self.Faraday_constant)
+        return g
+    
+    def calculate_dg_dXd_Borkovec_1983_eqn_16 (self, I, alpha, X_d, z):
+        dg_dXd = 2*alpha*(1/np.sqrt(I))*(z/2)*(Xd**((z/2)-1))*self.list_sorpt_pri_sp[0].sp_surf_area*(self.list_sorpt_pri_sp[0].solid_concentration_or_grams/self.Faraday_constant)
+        return dg_dXd
     
     def create_A_Borkovec (self):
         if not hasattr(self, 'U'):
@@ -690,9 +790,27 @@ class ChemSys_Surf (Database_SC):
         self.A_Borkovec_columns = self.names_aq_pri_sp + self.names_sorpt_pri_sp + self.names_elec_sorpt
         self.A_Borkovec_rows = self.names_aq_pri_sp + self.names_aq_sec_sp + self.names_sorpt_pri_sp + self.names_sorpt_sec_sp
         
-        
-        
-        
+    def create_B_Borkovec (self, A, g):
+        '''
+            In Borkovec (1983), in table 2 is describe how the modified stoichiometry matrix B, must be build using A as model.
+            Precondition: A is order according to g, g is order according to first the aqueous primary species followed by the secondary aqueous species.
+        '''
+        B = A.copy()
+        # Part A
+        for i in range(0, length(g)):
+            B[i,i] = A[i,i]*(1+g[i])
+        # Part B
+        count=0
+        for i in range(0, self.length_aq_pri_sp):
+            z = self.list_aq_pri_sp[i].charge
+            B[i,-1] = z*g[count]
+            count += 1
+        for i in range(0, self.length_aq_sec_sp): 
+            z = self.list_aq_sec_sp[i].charge
+            B[count,-1] = z*g[count]
+            count += 1
+            
+        return B
         
         
     def calculate_u_electro (self, unknonw_boltzman_vect, C):
