@@ -668,6 +668,9 @@ class ChemSys_Surf (Database_SC):
         c = K_eqn20 + np.matmul(A,np.log10(X))      # This part here is equation 20
         c = 10**c
         z_vec = self.get_z_vector()
+        
+        ''' First part according to Borkovec 1983 - page 333-334, solving assuming symmetric electrolyte '''
+        
         while err>tolerance and counter_iterations < max_iterations:
             I = self.calculate_ionic_strength(c[:self.length_aq_pri_sp + self.length_aq_sec_sp]) 
             # g must be calculated to create the matrix B
@@ -682,6 +685,30 @@ class ChemSys_Surf (Database_SC):
             #print(delta_X)
             # The error will be equal to the maximum increment
             err = max(abs(delta_X))
+            # Relaxation factor borrow from Craig M.Bethke to avoid negative values
+            max_1 = 1
+            max_2 =np.amax(-2*np.multiply(delta_X, 1/X))
+            Max_f = np.amax([max_1, max_2])
+            Del_mul = 1/Max_f
+            
+            # Update
+            X = X + Del_mul*delta_X   # Update primary species
+            c = K_eqn20 + np.matmul(A,np.log10(X))      # This part here is equation 20
+            c = 10**c
+            counter_iterations += 1
+        if counter_iterations >= max_iterations:
+            raise ValueError('Max number of iterations surpassed.')
+            
+        ''' Second part, assuming no symmetric electrolyte'''
+        # instantation variables loop
+        counter_iterations = 0
+        err = tolerance + 1  
+        while err>tolerance and counter_iterations < max_iterations:
+        
+            
+        self.c_Borkovec = c
+        return c
+        
     
     
     def create_jacobian_Borkovec_1983_symm (self, A, B, c, X, I, z_vector, g_vector):
@@ -706,10 +733,10 @@ class ChemSys_Surf (Database_SC):
             for k in range(0, Nx):
                 for i in range(0, Ns):  #Sum(bij*aik* ci/Xk)
                         Z[j, k] = Z[j, k] + B[i,j]*A[i,k]*(c[i]/X[k])
-            if k != (Nx-1):
-                Z[j, k] = Z[j, k] + self.term_A2_and_A3_Borkovec(n_iprime, j, k, A, c, X,g_vector,z_vector, I) 
-            elif k == (Nx-1): #There is one term for all K, except k = d and one for all 
-                Z[j, k] = Z[j, k] + self.term_A4_Borkovec(n_iprime,I, z_vector, X[k], c)
+                if k != (Nx-1):
+                    Z[j, k] = Z[j, k] + self.term_A2_and_A3_Borkovec(n_iprime, j, k, A, c, X,g_vector,z_vector, I) 
+                elif k == (Nx-1): #There is one term for all K, except k = d and one for all 
+                    Z[j, k] = Z[j, k] + self.term_A4_Borkovec(n_iprime,I, z_vector, X[k], c)
                     
         return Z 
         
@@ -731,8 +758,9 @@ class ChemSys_Surf (Database_SC):
         '''
         alpha = np.sqrt((self.dielectric_constant*self.permittivity_free_space)/(2*self.universal_gas_constant*self.temperature))    
         for iprime in range(0, n_iprime):
-            dgiprime_dXd = calculate_dg_dXd_Borkovec_1983_eqn_16 (I, alpha, X_d, z_vector[iprime])
+            dgiprime_dXd = self.calculate_dg_dXd_Borkovec_1983_eqn_16 (I, alpha, X_d, z_vector[iprime])
             R = R + c[iprime]*z_vector[iprime]*dgiprime_dXd
+        return R
     
     def calculate_g_vec_Borkovec_1983_eqn_16 (self, I, X_d):    
         '''
@@ -763,7 +791,7 @@ class ChemSys_Surf (Database_SC):
         return g
     
     def calculate_dg_dXd_Borkovec_1983_eqn_16 (self, I, alpha, X_d, z):
-        dg_dXd = 2*alpha*(1/np.sqrt(I))*(z/2)*(Xd**((z/2)-1))*self.list_sorpt_pri_sp[0].sp_surf_area*(self.list_sorpt_pri_sp[0].solid_concentration_or_grams/self.Faraday_constant)
+        dg_dXd = 2*alpha*(1/np.sqrt(I))*(z/2)*(X_d**((z/2)-1))*self.list_sorpt_pri_sp[0].sp_surf_area*(self.list_sorpt_pri_sp[0].solid_concentration_or_grams/self.Faraday_constant)
         return dg_dXd
     
     def create_A_Borkovec (self):
@@ -795,10 +823,16 @@ class ChemSys_Surf (Database_SC):
             In Borkovec (1983), in table 2 is describe how the modified stoichiometry matrix B, must be build using A as model.
             Precondition: A is order according to g, g is order according to first the aqueous primary species followed by the secondary aqueous species.
         '''
+        Nsb = self.length_aq_pri_sp + self.length_aq_sec_sp
+        Ncb = self.length_aq_pri_sp
+        
         B = A.copy()
+        
         # Part A
-        for i in range(0, length(g)):
-            B[i,i] = A[i,i]*(1+g[i])
+        DG = np.diag(g) + np.identity(Nsb)
+        ADG = np.matmul(DG,A[:Nsb, : Ncb])
+        B [:Nsb, :Ncb] = ADG
+    
         # Part B
         count=0
         for i in range(0, self.length_aq_pri_sp):
@@ -965,6 +999,14 @@ class ChemSys_Surf (Database_SC):
         #v_activity = self.c*(10**log_activity_coefficient)
         for i in range(0, self.S_length_columns):
             print(self.S_names_columns[i] + ' : ' + str(self.c[i]) + '\n')
+            #   print(self.list_species[i].name + ' : ' + str(v_activity[i]) + '\n')
+    
+    def print_speciation_Borkovec (self):
+        #ionic_strength = self.calculate_ionic_strength (self.c)
+        #log_activity_coefficient = self.calculate_log_activity_coefficient (ionic_strength, self.c)
+        #v_activity = self.c*(10**log_activity_coefficient)
+        for i in range(0, len(self.A_Borkovec_rows)):
+            print(self.A_Borkovec_rows[i] + ' : ' + str(self.c_Borkovec[i]) + '\n')
             #   print(self.list_species[i].name + ' : ' + str(v_activity[i]) + '\n')
         
         
