@@ -11,6 +11,7 @@ It is a daughter of Database_SC but it can be used without a database.
 
 from Database_SC import Database_SC
 import numpy as np
+import scipy.integrate as integrate
 
 class ChemSys_Surf (Database_SC):
     '''
@@ -698,17 +699,95 @@ class ChemSys_Surf (Database_SC):
             counter_iterations += 1
         if counter_iterations >= max_iterations:
             raise ValueError('Max number of iterations surpassed.')
-            
-        ''' Second part, assuming no symmetric electrolyte'''
+        
+        X_o = X.copy()
+        c_o = c.copy()
+        
+        ''' Second part, assuming no symmetric electrolyte
+            This part today (14/12/2018) is to me not completely clear. Hence, I will see how these approach works.
+            I notice that calculating g_vec_o is not equal to the old g_vec value:
+                DISCUSS IT with Heberling und Luetzenkirchen
+        '''
+        g_vec_o = self.calculate_g_vec_Borkovec_1983_eqn_11(z_vec, c_o[:self.length_aq_pri_sp + self.length_aq_sec_sp], X_o[-1])  # Necessary for equation 36 of Borkovec 1983
+        dg_dXd_vec_o = self.dg_dXd_vec_eqn_11(z_vec, c_o[:self.length_aq_pri_sp + self.length_aq_sec_sp], X_o[-1])         # Necessary for equation 36 of Borkovec 1983
         # instantation variables loop
         counter_iterations = 0
         err = tolerance + 1  
         while err>tolerance and counter_iterations < max_iterations:
+            # g must be calculated to create the matrix B
+            g_vec = g_vec_o + dg_dXd_vec_o*(X[-1]-X_o[-1])
+            # Now that vector g (assuming symmetrical electrolyte is build I can build the B matrix and find Y)
+            
+            
+            
+            
+            
+            
+            
+            counter_iterations += 1
         
             
         self.c_Borkovec = c
         return c
+    
+    def dg_dXd_eqn_11(self, z_vec, cb, Xd):
+        '''
+            In eqn 36 of Borkovec there is a term evaluated at c_o and Xd_o which is necessary for the calculation of the g factors.
+            The variable to integrate is in the integrand limit values of the equation.
+            The way to develop it can be found here: https://math.stackexchange.com/questions/716596/derivative-of-definite-integral
+            basically means:
+                int[a(x),b(x)] f(t) dt = F(a(x), b(x))
+                dF/dx = (dF/da)*(da/dx) - (dF/db)*(db/dx) = f(a(x))*(da/dx) - f(b(x))*(db/dx)
+                so for our specific case:
+                    a(Xd) = Xd  --> da/dXd = 1
+                    b(Xd) = 1 --> db/dXd = 0
+                    and f(t) will be the integrand of equation 11
+        '''
+        dg_dXd = []
+        if Xd-1 >= 0 :
+            b = 1
+        else:
+            b = -1
+        sa_F = self.list_sorpt_pri_sp[0].sp_surf_area*(self.list_sorpt_pri_sp[0].solid_concentration_or_grams/self.Faraday_constant)
+        alpha = self.alpha_Borkovec_1983() 
+        partA = sa_F*b*alpha
+        for i in range(0, len(z_vec)):
+            zi = z_vec[i]
+            partB = self.integrand_fun_Borkovec_1983_eqn_11(Xd, zi, z_vec, cb)
+            dg_dXd.append(partQ*partB)
+        return dg_dXd
+    
+
+    
+    def calculate_g_vec_Borkovec_1983_eqn_11 (self, z_vec, cb, Xd):
+        '''
+            This function should give a result value to the equation 11 stated in Borkovec 1983, If the parameters given are correct.
+        '''
+        g = []
+        tol = 1e-4
+        if Xd-1 >= 0 :
+            b = 1
+        else:
+            b = -1
+        sa_F = self.list_sorpt_pri_sp[0].sp_surf_area*(self.list_sorpt_pri_sp[0].solid_concentration_or_grams/self.Faraday_constant)
+        alpha = self.alpha_Borkovec_1983() 
+        partA = sa_F*b*alpha
         
+        for i in range(0, len(z_vec)):
+            zi = z_vec[i]
+            partB = integrate.quad(self.integrand_fun_Borkovec_1983_eqn_11, 1, Xd, args = (zi,z_vec, cb), points = [0.9,1.1])
+            if partB[1] > tol:
+                raise ValueError('equation 11, integration of integrand high numerical error')
+            g.append(partA*partB[0])
+        return g
+    
+    def integrand_fun_Borkovec_1983_eqn_11 (self, x, zi,z_vec, cb):
+        a = (x**zi)-1
+        b= 0
+        for i in range(0, len(z_vec)):
+            b = b + cb[i]*((x**z_vec[i])-1)
+        b = x*x*b
+        return a/b
     
     
     def create_jacobian_Borkovec_1983_symm (self, A, B, c, X, I, z_vector, g_vector):
@@ -753,14 +832,17 @@ class ChemSys_Surf (Database_SC):
     
     def term_A4_Borkovec(self,  n_iprime, I, z_vector, X_d, c):
         R = 0
-        '''
-        I THINK THERE IS A TYPO HERE (parameter alpha); I AM USING EQUATION 13 BUT I THINK THE EQUATION IS WRONG: SO I USE A MODIFIED ONE; I MUST ASK THE AUTHORS
-        '''
-        alpha = np.sqrt((self.dielectric_constant*self.permittivity_free_space)/(2*self.universal_gas_constant*self.temperature))    
+        alpha = self.alpha_Borkovec_1983()  
         for iprime in range(0, n_iprime):
             dgiprime_dXd = self.calculate_dg_dXd_Borkovec_1983_eqn_16 (I, alpha, X_d, z_vector[iprime])
             R = R + c[iprime]*z_vector[iprime]*dgiprime_dXd
         return R
+    
+    def alpha_Borkovec_1983 (self):
+        '''
+        I THINK THERE IS A TYPO HERE (parameter alpha); I AM USING EQUATION 13 BUT I THINK THE EQUATION IS WRONG: SO I USE A MODIFIED ONE; I MUST ASK THE AUTHORS
+        '''
+        return np.sqrt((self.dielectric_constant*self.permittivity_free_space)/(2*self.universal_gas_constant*self.temperature)) 
     
     def calculate_g_vec_Borkovec_1983_eqn_16 (self, I, X_d):    
         '''
@@ -769,10 +851,7 @@ class ChemSys_Surf (Database_SC):
         '''
         g = []
         
-        '''
-        I THINK THERE IS A TYPO HERE (parameter alpha); I AM USING EQUATION 13 BUT I THINK THE EQUATION IS WRONG: SO I USE A MODIFIED ONE; I MUST ASK THE AUTHORS
-        '''
-        alpha = np.sqrt((self.dielectric_constant*self.permittivity_free_space)/(2*self.universal_gas_constant*self.temperature))       
+        alpha = self.alpha_Borkovec_1983()         
         
         
         for i in range(0, self.length_aq_pri_sp): 
