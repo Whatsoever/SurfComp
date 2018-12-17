@@ -676,7 +676,7 @@ class ChemSys_Surf (Database_SC):
             I = self.calculate_ionic_strength(c[:self.length_aq_pri_sp + self.length_aq_sec_sp]) 
             # g must be calculated to create the matrix B
             g_vec = self.calculate_g_vec_Borkovec_1983_eqn_16(I, X[-1])
-            # Now that vector g (assuming symmetrical electrolyte is build I can build the B matrix and find Y)
+            # Now that vector g (assuming symmetrical electrolyte) --> I can build the B matrix and find Y
             B = self.create_B_Borkovec(A, g_vec)
             # Calculating Y. The Y is given in equation 22 in Borkovec(1983)
             Y = np.matmul(B.transpose(), c) - T
@@ -709,28 +709,40 @@ class ChemSys_Surf (Database_SC):
                 DISCUSS IT with Heberling und Luetzenkirchen
         '''
         g_vec_o = self.calculate_g_vec_Borkovec_1983_eqn_11(z_vec, c_o[:self.length_aq_pri_sp + self.length_aq_sec_sp], X_o[-1])  # Necessary for equation 36 of Borkovec 1983
+        g_vec_o = np.array(g_vec_o)
         dg_dXd_vec_o = self.dg_dXd_vec_eqn_11(z_vec, c_o[:self.length_aq_pri_sp + self.length_aq_sec_sp], X_o[-1])         # Necessary for equation 36 of Borkovec 1983
+        dg_dXd_vec_o = np.array(dg_dXd_vec_o)
         # instantation variables loop
         counter_iterations = 0
         err = tolerance + 1  
         while err>tolerance and counter_iterations < max_iterations:
             # g must be calculated to create the matrix B
             g_vec = g_vec_o + dg_dXd_vec_o*(X[-1]-X_o[-1])
-            # Now that vector g (assuming symmetrical electrolyte is build I can build the B matrix and find Y)
+            # Now that vector g (assuming asymmetrical electrolyte) --> I can build the B matrix and find Y
+            B = self.create_B_Borkovec(A, g_vec)
+            # Calculating Y. The Y is given in equation 22 in Borkovec(1983)
+            Y = np.matmul(B.transpose(), c) - T
+            # Now the jacobian must be created
+            Z = self.create_jacobian_Borkovec_1983_asymm( A, B, c, X, z_vec, g_vec)
+            delta_X = np.linalg.solve(Z,-Y)
+            # The error will be equal to the maximum increment
+            err = max(abs(delta_X))
+            # Relaxation factor borrow from Craig M.Bethke to avoid negative values
+            max_1 = 1
+            max_2 =np.amax(-2*np.multiply(delta_X, 1/X))
+            Max_f = np.amax([max_1, max_2])
+            Del_mul = 1/Max_f
             
-            
-            
-            
-            
-            
-            
+            # Update
+            X = X + Del_mul*delta_X   # Update primary species
+            c = K_eqn20 + np.matmul(A,np.log10(X))      # This part here is equation 20
+            c = 10**c
             counter_iterations += 1
-        
             
         self.c_Borkovec = c
         return c
     
-    def dg_dXd_eqn_11(self, z_vec, cb, Xd):
+    def dg_dXd_vec_eqn_11(self, z_vec, cb, Xd):
         '''
             In eqn 36 of Borkovec there is a term evaluated at c_o and Xd_o which is necessary for the calculation of the g factors.
             The variable to integrate is in the integrand limit values of the equation.
@@ -754,7 +766,7 @@ class ChemSys_Surf (Database_SC):
         for i in range(0, len(z_vec)):
             zi = z_vec[i]
             partB = self.integrand_fun_Borkovec_1983_eqn_11(Xd, zi, z_vec, cb)
-            dg_dXd.append(partQ*partB)
+            dg_dXd.append(partA*partB)
         return dg_dXd
     
 
@@ -775,20 +787,66 @@ class ChemSys_Surf (Database_SC):
         
         for i in range(0, len(z_vec)):
             zi = z_vec[i]
-            partB = integrate.quad(self.integrand_fun_Borkovec_1983_eqn_11, 1, Xd, args = (zi,z_vec, cb), points = [0.9,1.1])
+            partB = integrate.quad(self.integrand_fun_Borkovec_1983_eqn_11, 1, Xd, args = (zi,z_vec, cb))
             if partB[1] > tol:
                 raise ValueError('equation 11, integration of integrand high numerical error')
             g.append(partA*partB[0])
         return g
     
+    
+    #def integrand_fun_Borkovec_1983_eqn_11 (self, x, zi,z_vec, cb):
+     #   a = (x**zi)-1
+      #  b= 0
+       # for i in range(0, len(z_vec)):
+        #    b = b + cb[i]*((x**z_vec[i])-1)
+        #b = x*x*b
+        #return a/b
+        #https://scicomp.stackexchange.com/questions/30715/how-to-cope-with-the-following-singularity?noredirect=1#comment56672_30715
     def integrand_fun_Borkovec_1983_eqn_11 (self, x, zi,z_vec, cb):
-        a = (x**zi)-1
+        '''
+            External help has been provided, here the link for this help. Maybe it should be asked to a mathematician working in this area.
+            https://scicomp.stackexchange.com/questions/30715/how-to-cope-with-the-following-singularity?noredirect=1#comment56672_30715
+            Actually the guy who provided the answer is : Lutz Lehmann from Humboldt-Universität zu Berlin (He is a mathematician). So I assume it is ok.
+        '''
+        a = self.term_integrand_fun_Borkovec_1983_eqn_11 (x, zi)
         b= 0
         for i in range(0, len(z_vec)):
-            b = b + cb[i]*((x**z_vec[i])-1)
+            b = b + cb[i]*self.term_integrand_fun_Borkovec_1983_eqn_11(x, z_vec[i])
         b = x*x*b
+        #b = (1e-20+max(0,b))**0.5
+        b = abs(b)**0.5
+        #print(b)
+        #print(x)
         return a/b
     
+    def term_integrand_fun_Borkovec_1983_eqn_11(self, X, z):
+        if abs(X-1)>1e-8:
+            return X**z-1       # If I am not close to zero I return (X^z)-1
+        return z*(X-1)*(1+(z-1)*(X-1)/2.0*(1+(z-2)*(X-1)/3.0))
+    
+    def create_jacobian_Borkovec_1983_asymm (self, A, B, c, X, z_vector, g_vector):
+        '''
+            In the appendix (Borkovec_1983) is written the following, I quote:
+                "(ii) For the case of the asymmetric electrolyte with k != d, we need only the first term of eqn.(A2), since in the iteration procedure we define the gi's to be function of Xd only."
+            That means that the gi used is the one of equation 36, and hence gi is only function of Xd. Then the quoute continues with:
+                "For k = d the derivative needed is simply the integrand of eqn. (11) evaluated at Xd"
+        '''
+        assert len(z_vector)==len(g_vector), " [create_jacobian_Borkovec_1983_symm] vectors of charge and vector of factor g are not equal. Something must be wrong."
+        Nx = len(X)
+        Ns = len(c)
+        n_iprime = len(g_vector)
+        Z = np.zeros((Nx, Nx))
+        # There is a term that is repeated in all part of the matrix, also when k = d
+        #
+        # Sum(bij*aik* ci/Xk)
+        # Such term will be the first to be calculated.
+        for j in range(0, Nx):
+            for k in range(0, Nx):
+                for i in range(0, Ns):  #Sum(bij*aik* ci/Xk)
+                        Z[j, k] = Z[j, k] + B[i,j]*A[i,k]*(c[i]/X[k])
+                if k == (Nx-1):
+                    Z[j, k] = Z[j, k] + self.term_A4_Borkovec_asym(n_iprime, z_vector, X[k], c[:n_iprime])
+        return Z 
     
     def create_jacobian_Borkovec_1983_symm (self, A, B, c, X, I, z_vector, g_vector):
         '''
@@ -815,11 +873,14 @@ class ChemSys_Surf (Database_SC):
                 if k != (Nx-1):
                     Z[j, k] = Z[j, k] + self.term_A2_and_A3_Borkovec(n_iprime, j, k, A, c, X,g_vector,z_vector, I) 
                 elif k == (Nx-1): #There is one term for all K, except k = d and one for all 
-                    Z[j, k] = Z[j, k] + self.term_A4_Borkovec(n_iprime,I, z_vector, X[k], c)
+                    Z[j, k] = Z[j, k] + self.term_A4_Borkovec_sym(n_iprime,I, z_vector, X[k], c)
                     
         return Z 
         
-        
+    def term_A4_Borkovec_asym(self, n_iprime, z_vector, Xd, c):  
+        dg_dXd_vec = self.dg_dXd_vec_eqn_11(z_vector, c, Xd)
+        b = sum(cb*z*dg for cb,z,dg in zip(c[:n_iprime],z_vector,dg_dXd_vec))
+        return b
         
     def term_A2_and_A3_Borkovec(self, n_iprime, j, k, A, c, X, g_vector,z_vector, I):
         v = 0
@@ -830,7 +891,7 @@ class ChemSys_Surf (Database_SC):
             R = R + c[iprime]*A[iprime, j]*(-g_vector[iprime]/(2*I))*v
         return R
     
-    def term_A4_Borkovec(self,  n_iprime, I, z_vector, X_d, c):
+    def term_A4_Borkovec_sym(self,  n_iprime, I, z_vector, X_d, c):
         R = 0
         alpha = self.alpha_Borkovec_1983()  
         for iprime in range(0, n_iprime):
