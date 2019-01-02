@@ -1127,6 +1127,147 @@ class ChemSys_Surf (Database_SC):
          
         Ionic_s = 0.5*Ionic_s
         return Ionic_s
+    
+    
+    
+    
+    
+    def Bethke_algorithm (self, tolerance = 1e-6, max_n_iterations = 100):
+        '''
+            These algortihm implementation is based on Geochemical and Biogeochemical reaction modeling from Craig M.Bethke
+            section_10.3
+        '''
+        # Check that water is on the database as primary species and has the first possition
+        # So far, for simplicity I leave the thing with the H2O like that but it can be changed.
+        ind = self.name_primary_species.index('H2O')
+        if not (ind == 0):
+            raise ValueError('[ChemSys/bethke_algorithm] -->To use this algortihm water must be on the first position of the primary species. \n')
+        
+        err = 1
+        counter_iterations = 0
+        
+        
+         while err>tolerance and counter_iterations < max_n_iterations:
+             # First the R vector must be calculated
+             Rw = 
+             # Second the Jacobian of the vector must be calculated
+        
+    ###########Under Revision###########################################################################
+        
+        # Calculations out of the loop that are needed on the loop
+        #∑_j v_wj*v_ij
+        #           | 1 0  0 2 1 |                                       | 0 0 0 2 -1 |
+        # e.g: U =  | 0 2  3 1 -1|   if the first row is water then WV = | -1 0 0 0 -1 |
+        #           | -1 2 3 0 -1|                                       
+        WV= np.multiply(self.U2[ind,:], self.U2[1:,:])
+        
+        # identity size m1
+        I = np.identity(self.n_species-self.n_reactions-1)
+        
+        # Updates before loop
+        
+        nps = len(self.name_primary_species)
+        delta_c = np.zeros(nps);
+        counter_iterations = 0;
+        S1, S2 = self.separte_S_into_S1_and_S2()
+        S_prima = -np.matmul(np.linalg.inv(S2),S1)
+        log_K_prima = np.matmul(np.linalg.inv(S2), self.log_k_vector)
+        
+        
+        nw_guess = 1                # So we are supossing that the initial amount of water is 1, actually it must change
+        m1_guess = (0.9*self.u_comp_vec[1:])/nw_guess
+        
+        ct = np.concatenate((np.concatenate(([55.5087], m1_guess)), np.zeros(self.n_reactions)))
+        ionic_strength = 0  #ionic_strength = self.calculate_ionic_strength (ctemp)
+        log_activity_coefficient = self.calculate_log_activity_coefficient (ionic_strength, ct)
+         
+        
+        m2_guess=self.log_speciation_secondaryspecies (np.concatenate(([55.5087], m1_guess)), log_activity_coefficient, S_prima, log_K_prima, nps)
+        m2_guess = 10**m2_guess
+        err = 1
+        
+        while err>tolerance and counter_iterations < max_n_iterations:
+            # Calculations that appear on the residual functions and residual jacobian functions
+            # 55.5087+∑_j▒〖v_wj m_j 〗
+            Mw_cal =55.5087 + np.dot(self.U2[ind,:], m2_guess)
+            # m_i+∑_j▒〖v_ij m_j 〗
+            Mi_cal = m1_guess + np.matmul(self.U2[1:,:], m2_guess)
+            #∑_j v_wj*v_ij
+            
+            
+            # Calculate Residual water function
+            rw = nw_guess*Mw_cal
+            # Calculate Residual component function
+            ri = nw_guess*Mi_cal
+            # Residual function
+            R = np.concatenate(([rw], ri)) - self.u_comp_vec
+            
+            # Jacobian part
+            Jww = Mw_cal
+            Jwi = np.multiply((nw_guess/m1_guess), np.matmul(WV,m2_guess))
+            Jiw = Mi_cal
+            Jii = nw_guess*I + nw_guess*self.Jii_partB_calculation(m1_guess, m2_guess)
+            # concatanate
+            Jw = np.concatenate(([Jww], Jwi), axis=0)
+            Ji = np.c_[Jiw, Jii]
+            J = np.vstack((Jw, Ji))
+            
+            # Solution Newthon-Raphson
+            delta_c = np.linalg.solve(J,-R)
+            err = max(abs(delta_c))
+            # relaxation factor
+            max_1 = 1;
+            max_2 =(-2*delta_c[0])/nw_guess
+            max_3 = np.amax(-2*np.multiply(delta_c[1:], 1/m1_guess))
+            Max_f = np.amax([max_1, max_2, max_3])
+            Del_mul = 1/Max_f
+            # Update guesses
+            nw_guess = nw_guess + Del_mul*delta_c[0]
+            m1_guess  = m1_guess  + Del_mul*delta_c[1:]
+            
+            # Update others
+            ctemp = np.concatenate((np.concatenate(([55.5087], m1_guess)), m2_guess))
+            ionic_strength = self.calculate_ionic_strength (ctemp)
+            log_activity_coefficient = self.calculate_log_activity_coefficient (ionic_strength, ct)
+            m2_guess=self.log_speciation_secondaryspecies (np.concatenate(([55.5087], m1_guess)), log_activity_coefficient, S_prima, log_K_prima, nps)
+            m2_guess = 10**m2_guess
+            
+            counter_iterations +=1
+            
+        if counter_iterations >= max_n_iterations:
+            raise ValueError('Max number of iterations surpassed.')
+        c_n = np.concatenate((np.concatenate(([55.5087], m1_guess)), m2_guess))
+        self.c = c_n
+        self.mass_water = nw_guess
+        return c_n
+    
+    def Jii_partB_calculation(self, m1_guess, m2_guess):
+        nc = len(m1_guess)
+        Jii = np.identity(nc)
+        for i in range(0, nc):
+            for j in range(0, nc):
+                Jii[i,j]= np.matmul(np.multiply(self.U2[1+i,:], self.U2[1+j,:]), (m2_guess/m1_guess[j]))
+        return Jii
+    
+    
+#####################The upper pqrt is under Revision #############################"
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
         
         ###################################################
         ################################
