@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Nov  8 15:06:19 2018
+Created on 02/01/2019
 
 @author: DaniJ
 """
 #
-#               THIS BENCHMARK IS BASED ON THE WORK OF BORKOVEC 1983
+#               THIS BENCHMARK IS BASED ON THE WORK OF Craig. Bethe "Geochemical and Biogeochemical Reaction Modeling"
 #
 
 import numpy as np
@@ -20,9 +20,9 @@ from getting_information_from_databaseSC_file_v1 import *
 from getting_informationSC_input_file_v1 import *
 from Read_input_file_type1 import *
 
-# Borkovec 1983
+# Bethe book
 # Read database
-database_file = 'Type6_Database_SC.txt'
+database_file = 'Type7_Database_SC.txt'
 # Instantiating database
 n_aq_sp_pri, n_aq_sp_sec, n_sorpt_sp_pri, n_sorpt_sp_sec, Aq_sp_list_pri, Aq_sp_list_sec, Sorp_sp_list_pri, Sorp_sp_list_sec, Aq_list_react, Sorp_list_react = getting_information_from_databaseSC_file_v1 (database_file)
 #
@@ -44,7 +44,7 @@ DS.create_pseudo_S()
 
 
 # Reading input
-infile = 'Type6_Input_SC_DL.txt'
+infile = 'Type7_Input_SC_DL.txt'
 # Instantiating input
 list_aq_component, list_aq_value, names_pri_sorpt, list_sorption_comp  = getting_informationSC_input_file_v1 (infile)
 
@@ -56,11 +56,20 @@ CS.define_system_from_input_and_database ( DS, list_aq_component, list_aq_value,
 CS.create_pseudo_S()
 
 #####
-#### Following the example of Borkovec 1983 (Table 1)
-#### pseudo S shoudl have as columns: H+, Cl-, Na+, XOH, OH-, XOH2+, XO-
-### And as rows, it should have the three reactions of the secondary species (aqueous and surfaces), for OH, for XOH2+ and for XO-
-### It looks in this case if nothing has been changed as:
-pseudoS = np.array([[ 1.,  0.,  0.,  0.,  1.,  0.,  0.],[-1.,  0.,  0., -1.,  0.,  1.,  0.],[ 1.,  0.,  0., -1.,  0.,  0.,  1.]])
+#### Following the example of Craig Bethe, section 10.4. The reactions having Hg have not been added because where not found in the llnl database
+#### pseudo S shoudl have as columns: H2O, H+, Na+, Cl-, Pb+2, SO4-2, Hfo_sOH, Hfo_wOH, OH-, NaCl, Hfo_sOH2+, Hfo_sO-, Hfo_wOH2+, Hfo_wO-, Hfo_sOPb+, Hfo_wOPb+, Hfo_wSO4-, Hfo_wOHSO4-2
+### And as rows, it should have the 2 reactions of the aqueous secondary species (OH-, NaCl) and 8 of the secondary surfaces species (Hfo_wOH2+, Hfo_wO-, Hfo_sOPb+, Hfo_wOPb+, Hfo_wSO4-, Hfo_wOHSO4-2)
+### if nothing has been changed, it should be like:
+pseudoS = np.array([[-1.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0.,  0., 0.,  0.,  0.,  0.,  0.], \
+                    [ 0.,  0., -1., -1.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0., 0.,  0.,  0.,  0.,  0.], \
+                    [ 0., -1.,  0.,  0.,  0.,  0., -1.,  0.,  0.,  0.,  1.,  0.,  0., 0.,  0.,  0.,  0.,  0.], \
+                    [ 0.,  1.,  0.,  0.,  0.,  0., -1.,  0.,  0.,  0.,  0.,  1.,  0., 0.,  0.,  0.,  0.,  0.], \
+                    [ 0., -1.,  0.,  0.,  0.,  0.,  0., -1.,  0.,  0.,  0.,  0.,  1., 0.,  0.,  0.,  0.,  0.], \
+                    [ 0.,  1.,  0.,  0.,  0.,  0.,  0., -1.,  0.,  0.,  0.,  0.,  0., 1.,  0.,  0.,  0.,  0.], \
+                    [ 0.,  1.,  0.,  0., -1.,  0., -1.,  0.,  0.,  0.,  0.,  0.,  0., 0.,  1.,  0.,  0.,  0.], \
+                    [ 0.,  1.,  0.,  0., -1.,  0.,  0., -1.,  0.,  0.,  0.,  0.,  0., 0.,  0.,  1.,  0.,  0.],  \
+                    [ 1., -1.,  0.,  0.,  0., -1.,  0., -1.,  0.,  0.,  0.,  0.,  0., 0.,  0.,  0.,  1.,  0.], \
+                    [ 0.,  0.,  0.,  0.,  0., -1.,  0., -1.,  0.,  0.,  0.,  0.,  0., 0.,  0.,  0.,  0.,  1.]])
 
 print(np.array_equal(CS.pseudoS, pseudoS))
 

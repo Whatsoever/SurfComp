@@ -21,8 +21,8 @@ SO4-2		-2			96.0636			4
 
 Secondary_Species
 # Name	#Charge 	#Reaction ('Primary Species' 'Stoichiometric' ....)
-#OH-         -1 		H2O	-1	H+	1  # This first reaction has been omitted while contains water. Remember that here we assume that water is negligible
-OH-         -1 		H+	1
+OH-         -1 		H2O	-1	H+	1  # This first reaction has been omitted while contains water. Remember that here we assume that water is negligible
+#OH-         -1 		H+	1
 -log_k	     -14
 -a	4.5
 -b	0
@@ -34,7 +34,7 @@ OH-         -1 		H+	1
 #  3) More lines can be written, behind to add parameters. (e.g. Parameter for temperature and the log_K) <-- must be discussed.
 
 
-NaCl	0	Na+	1	Cl-	1
+NaCl	0	Na+	-1	Cl-	-1
 -log_k		-0.77
 -a		3
 
@@ -61,7 +61,7 @@ Hfo_wO-   1	Hfo_wOH  -1	H+  1
 Hfo_sOPb+ 1	H+  1	Hfo_sOH  -1	Pb+2	-1
 -log_k  4.65
 
-Hfo_wOPb+ 1 	H+  1 	Hfo_wOH 1	 Pb+2 1 
+Hfo_wOPb+ 1 	H+  1 	Hfo_wOH  -1	 Pb+2   -1 
 -log_k  0.3
 
 Hfo_wSO4- 1 	H2O	1 	Hfo_wOH -1 	SO4-2 -1 	H+ -1 

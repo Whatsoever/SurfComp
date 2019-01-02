@@ -117,6 +117,10 @@ def read_block_Secondary_Species (list_datablock_secondary):
             line_counter += 1
         else:
             words_line = temp.split()
+            # Remove the parts that contain comments "#"
+            if words_line.count('#') == 1 :
+                remover_value = words_line.index('#')
+                words_line = words_line[:remover_value]                               
             if words_line[0] == '-log_k':
                 R.set_log_k(float(words_line[1]))
                 List_aq_reactions.append(R)
@@ -229,7 +233,11 @@ def read_block_Sorption (list_sorption):
         else:
             words_line = temp.split()
             if words_line[0] == '-type':
-                Sorpt_pri_sp.set_type_sorption(words_line[1])
+                if words_line[1] == 'related':
+                    Sorpt_pri_sp.set_type_sorption(words_line[1])
+                    Sorpt_pri_sp.set_type_relation(words_line[2])
+                else:
+                    Sorpt_pri_sp.set_type_sorption(words_line[1])
                 line_counter += 1
             elif words_line[0] == '-C1':
                 Sorpt_pri_sp.capacitance_1(words_line[1])

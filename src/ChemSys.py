@@ -580,7 +580,10 @@ class ChemSys (Database):
         #∑_j v_wj*v_ij
         #           | 1 0  0 2 1 |                                       | 0 0 0 2 -1 |
         # e.g: U =  | 0 2  3 1 -1|   if the first row is water then WV = | -1 0 0 0 -1 |
-        #           | -1 2 3 0 -1|                                       
+        #           | -1 2 3 0 -1|    
+        #
+        # Notice that the U will never be like in the example, because the primary species values should be an identity matrix.
+        #                                   
         WV= np.multiply(self.U2[ind,:], self.U2[1:,:])
         
         # identity size m1
@@ -597,7 +600,7 @@ class ChemSys (Database):
         
         
         nw_guess = 1                # So we are supossing that the initial amount of water is 1, actually it must change
-        m1_guess = (0.9*self.u_comp_vec[1:])/nw_guess
+        m1_guess = (0.9*self.u_comp_vec[1:])*nw_guess
         
         ct = np.concatenate((np.concatenate(([55.5087], m1_guess)), np.zeros(self.n_reactions)))
         ionic_strength = 0  #ionic_strength = self.calculate_ionic_strength (ctemp)

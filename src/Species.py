@@ -110,11 +110,19 @@ class Surf_species (Species):
             T_solid                                     e.g. This attribute/property should only be defined to primary species. It set the value of the total sum of primary and secondary species of a solid. Component value for solid.  T = stoichiometric*primary+stoichiometric*secondary                                                                  
             sp_surf_area                                e.g. The specific surface area in m^2/g  needed to calculate T_sigma
             solid_concentration_or_grams                e.g. The specific surface area in g or g/L or g/kgwater  needed to calculate T_sigma
-            C1
+            C1                                          i.e. For CCM model or for the TLM
+            C2                                          i.e. For the TLM
+            names_Boltz_psi                             e.g. name of the electrostatic potential, necessary for assigning names in stoichiometric and component matrices
+            type_relation                               i.e. it is a flag that indicates that the following primary species share the electrostatic potential with other species, e.g. Hfo_w shared it with Hfo_s
         methods:
             set_type_sorption (type_sorpt)
             moles_component_solid(mols_or_mols_liter_Tsolid)
             specific_surface_area(Specific_Area)
+            set_type_relation (species_related)
+            create_name_electrostatic_potential_type (type_sorpt)
+            solid_concentration(Solid_or_SolidConcentration)
+            capacitance_1 (Capacitance_value):
+            capacitance_2 (Capacitance_value):
     '''
     # Constructor
     def __init__(self, name):
@@ -137,6 +145,14 @@ class Surf_species (Species):
         self.type_sorption = type_sorpt
         self.names_Boltz_psi = self.create_name_electrostatic_potential_type (type_sorpt)
     
+    def set_type_relation (self, species_related):
+        '''
+            This is a flag that points to another species. 
+            e.g.
+            Imaging just one surface with two types of sorption sites: weak and strong, both will share the same electrostatic potential but when solving the problem we need only one electrostatic potential
+            Hence, one species will point to the name of the ohter. The decision of which one points to each other, is given by the user.
+        '''
+        self.type_relation = species_related
     
     def create_name_electrostatic_potential_type (self, type_sorpt):
         '''
