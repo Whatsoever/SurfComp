@@ -82,6 +82,7 @@ def read_block_Primary_Species (list_datablock_primary):
             line_counter += 1
         else:
             words_line = temp.split()
+            words_line = remove_coments(words_line)             # Remove the parts that contain comments "#"  
             # appending primary Species
             names_primary_species.append(words_line[0])
             # Creating an aqueous species
@@ -117,10 +118,7 @@ def read_block_Secondary_Species (list_datablock_secondary):
             line_counter += 1
         else:
             words_line = temp.split()
-            # Remove the parts that contain comments "#"
-            if words_line.count('#') == 1 :
-                remover_value = words_line.index('#')
-                words_line = words_line[:remover_value]                               
+            words_line = remove_coments(words_line)             # Remove the parts that contain comments "#"                                         
             if words_line[0] == '-log_k':
                 R.set_log_k(float(words_line[1]))
                 List_aq_reactions.append(R)
@@ -160,6 +158,7 @@ def read_block_Surface_Primary (list_datablock_surfpri):
            line_counter += 1 
        else:
            words_line = temp.split()
+           words_line = remove_coments(words_line)             # Remove the parts that contain comments "#"  
            S = Surf_species(words_line[0])
            names_primary_sorptspecies.append(words_line[0])
            List_Sorpt_classes_primary_species.append(S)
@@ -181,6 +180,7 @@ def read_block_Surface_Secondary (list_datablock_surfsec):
             line_counter += 1
         else:
             words_line = temp.split()
+            words_line = remove_coments(words_line)             # Remove the parts that contain comments "#"  
             if words_line[0] == '-log_k':
                 R.set_log_k(float(words_line[1]))
                 List_sorption_reactions.append(R)
@@ -195,6 +195,7 @@ def read_block_Surface_Secondary (list_datablock_surfsec):
                         dic_reaction[words_line[i]] = int(words_line[i+1])
                 R.set_reaction(dic_reaction)
                 S = Surf_species(words_line[0])
+                S.set_surface_charge (int(words_line[1]))
                 names_sorption_secondary_species.append(words_line[0])
                 List_Sorption_secondary_species.append(S)
                 line_counter += 1    
@@ -215,6 +216,7 @@ def read_block_Solution (list_solution):
             line_counter += 1
         else:
             words_line = temp.split()   
+            words_line = remove_coments(words_line)             # Remove the parts that contain comments "#"  
             names_aq_component.append(words_line[0])
             values_aq_comp.append(float(words_line[1]))
             line_counter += 1
@@ -232,6 +234,7 @@ def read_block_Sorption (list_sorption):
             line_counter += 1
         else:
             words_line = temp.split()
+            words_line = remove_coments(words_line)             # Remove the parts that contain comments "#"  
             if words_line[0] == '-type':
                 if words_line[1] == 'related':
                     Sorpt_pri_sp.set_type_sorption(words_line[1])
@@ -240,10 +243,10 @@ def read_block_Sorption (list_sorption):
                     Sorpt_pri_sp.set_type_sorption(words_line[1])
                 line_counter += 1
             elif words_line[0] == '-C1':
-                Sorpt_pri_sp.capacitance_1(words_line[1])
+                Sorpt_pri_sp.set_capacitance_1(words_line[1])
                 line_counter += 1
             elif words_line[0] == '-C2':
-                Sorpt_pri_sp.capacitance_2(words_line[1])
+                Sorpt_pri_sp.set_capacitance_2(words_line[1])
                 line_counter += 1
             else:
                 Sorpt_pri_sp = Surf_species(words_line[0])
@@ -254,3 +257,15 @@ def read_block_Sorption (list_sorption):
                 list_sorption_class.append (Sorpt_pri_sp)
                 line_counter += 1
     return names_pri_sorpt, list_sorption_class
+
+
+
+
+
+################## Auxiliar from auxiliar functions ####################
+def remove_coments (list_of_words):
+    # Remove the parts that contain comments "#"
+    if list_of_words.count('#') == 1 :
+        remover_value = list_of_words.index('#')
+        list_of_words = list_of_words[:remover_value]
+    return list_of_words

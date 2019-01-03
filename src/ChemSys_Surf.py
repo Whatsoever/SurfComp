@@ -36,11 +36,12 @@ class ChemSys_Surf (Database_SC):
                 B_Borkovec
                 A_Borkovec_columns
                 A_Borkovec_rows
+                aq_u_vector
+                waterdensity
                 
             methods:
                 set_S
                 set_vector_aqueous_component_value
-                aq_u_vector
                 set_names_electrostatic_variables
                 set_electro_sorption_stoichiometric_M
                 set_universal_gas_constant
@@ -53,6 +54,7 @@ class ChemSys_Surf (Database_SC):
                 calculate_A_activitypar
                 calculate_B_activitypar
                 calculate_ionic_strength
+                calculate_waterdensity
                 calculate_u_electro 
                 define_system_from_input_and_database
                 create_S
@@ -72,6 +74,8 @@ class ChemSys_Surf (Database_SC):
                 print_speciation
                 speciation_Borkovec_1983_DLM
                 get_z_vector
+                calculate_log_activity_coefficient_aq_pri_species
+                calculate_log_activity_coefficient_aq_sec_species
                 
         NOTE: Remark that ChemSys_Surf is a daughter class from Database_SC. Therefore, in order to create the pseudo S matrix (The stoichiometric matrix that does not contain the surface potential as unknown). Methods like ...
                 ... set_names_aq_primary_species (names_aq_pri_sp), set_names_aq_secondary_species (names_aq_sec_sp), set_names_sorpt_primary_species (names_sorpt_pri_sp), set_names_sorpt_secondary_species (names_sorpt_sec_sp), set_aq_list_pri_class (list_aq_pri_sp), ...
@@ -84,6 +88,9 @@ class ChemSys_Surf (Database_SC):
         self.universal_gas_constant = 8.314472  # J/(K*mol)
         self.permittivity_free_space = 8.854187871e-12## Farrads = F --> F/m = C^2/(J*m) ALSO called vacuum permittivity, electri constant or distributed capacitance of the vacuum
         self.calculate_dielectric_constant()
+        self.calculate_waterdensity()
+        self.calculate_A_activitypar()
+        self.calculate_B_activitypar()
         self.ionic_strength_constant = False
         pass
     
@@ -259,12 +266,15 @@ class ChemSys_Surf (Database_SC):
         '''
         # create list of new boltzman surface potential variables from sorption species
         self.names_elec_sorpt = []
+        index_related_sorpt_pri = []
         for i in range(0,self.length_sorpt_pri_sp):
-            if isinstance(self.list_sorpt_pri_sp[i].names_Boltz_psi, str):
+            if hasattr(self.list_sorpt_pri_sp[i], 'type_relation'):                         # related species should be defined in the list_sorpt_pri_sp after the leading species.
+                index_related_sorpt_pri.append(self.names_sorpt_pri_sp.index(self.list_sorpt_pri_sp[i].type_relation))
+            elif isinstance(self.list_sorpt_pri_sp[i].names_Boltz_psi, str):
                 self.names_elec_sorpt.append(self.list_sorpt_pri_sp[i].names_Boltz_psi)
-            if isinstance(self.list_sorpt_pri_sp[i].names_Boltz_psi, list):
+            elif isinstance(self.list_sorpt_pri_sp[i].names_Boltz_psi, list):
                 for j in range(0, len(self.list_sorpt_pri_sp[i].names_Boltz_psi)):
-                    self.names_elec_sorpt.append(self.list_sorpt_pri_sp[i].names_Boltz_psi[j])
+                        self.names_elec_sorpt.append(self.list_sorpt_pri_sp[i].names_Boltz_psi[j])
         self.length_names_elec_sorpt = len(self.names_elec_sorpt)
         # Block
         if not hasattr(self, 'pseudoS_length_rows'):
@@ -272,16 +282,73 @@ class ChemSys_Surf (Database_SC):
             self.pseudoS_length_rows = self.length_aq_sec_sp + self.length_sorpt_sec_sp
         S_electro = np.zeros((self.pseudoS_length_rows, self.length_names_elec_sorpt))
         col_position = 0
+        track_dict = {}
+        counter = 0
         for i in range(0, self.length_sorpt_pri_sp):
-            sub_B = self.create_stoichiometric_surfacepotential (self.names_sorpt_pri_sp[i], self.list_sorpt_pri_sp[i].type_sorption)
-            if len(sub_B.shape) == 1:
-                S_electro[:, col_position] = sub_B
-                col_position += 1 
-            elif len(sub_B.shape) == 2:
-                old_col_position = col_position
-                col_position = col_position + sub_B.shape[1]
-                S_electro[:, old_col_position:col_position] = sub_B
+            if hasattr(self.list_sorpt_pri_sp[i], 'type_relation'):                 # related species should be defined in the list_sorpt_pri_sp after the leading species.
+                sub_B = self.create_stoichiometric_surfacepotential (self.names_sorpt_pri_sp[i], self.list_sorpt_pri_sp[index_related_sorpt_pri[counter]].type_sorption)
+                ind_start = track_dict['start_'+ self.names_sorpt_pri_sp[index_related_sorpt_pri[counter]]]
+                ind_end =track_dict['end_'+ self.names_sorpt_pri_sp[index_related_sorpt_pri[counter]]]
+                if len(sub_B.shape) == 1:
+                    S_electro[:, ind_start:ind_end] = S_electro[:, ind_start:ind_end] + sub_B.reshape(sub_B.shape[0],1) 
+                else:
+                    S_electro[:, ind_start:ind_end] = S_electro[:, ind_start:ind_end] + sub_B 
+                counter += 1
+            else:       
+                sub_B = self.create_stoichiometric_surfacepotential (self.names_sorpt_pri_sp[i], self.list_sorpt_pri_sp[i].type_sorption)
+                if len(sub_B.shape) == 1:
+                    S_electro[:, col_position] = sub_B
+                    track_dict['start_'+self.names_sorpt_pri_sp[i]] = col_position
+                    col_position += 1 
+                    track_dict['end_'+self.names_sorpt_pri_sp[i]] = col_position
+                elif len(sub_B.shape) == 2:
+                    old_col_position = col_position
+                    col_position = col_position + sub_B.shape[1]
+                    S_electro[:, old_col_position:col_position] = sub_B
+                    track_dict['start_'+self.names_sorpt_pri_sp[i]] = old_col_position
+                    track_dict['end_'+self.names_sorpt_pri_sp[i]] = col_position
         self.S_electro = S_electro
+     
+    #def create_electro_sorption_stoichiometric_M (self):
+        '''
+            The function assumes that some variables are already defined
+        '''
+        # create list of new boltzman surface potential variables from sorption species
+  #      self.names_elec_sorpt = []
+ #       index_related_sorpt_pri = []
+#        for i in range(0,self.length_sorpt_pri_sp):
+           # if isinstance(self.list_sorpt_pri_sp[i].names_Boltz_psi, str):
+          #      if self.list_sorpt_pri_sp[i].names_Boltz_psi == 'related':              # related species should be defined in the list_sorpt_pri_sp after the leading species.
+         #           index_related_sorpt_pri.append(self.names_sorpt_pri_sp.index(self.list_sorpt_pri_sp[i].type_relation))
+        #        else:
+       #             self.names_elec_sorpt.append(self.list_sorpt_pri_sp[i].names_Boltz_psi)
+      #      if isinstance(self.list_sorpt_pri_sp[i].names_Boltz_psi, list):
+     #           if self.list_sorpt_pri_sp[i].names_Boltz_psi == 'related':
+    #                
+   #             else:
+  #                  for j in range(0, len(self.list_sorpt_pri_sp[i].names_Boltz_psi)):
+ #                       self.names_elec_sorpt.append(self.list_sorpt_pri_sp[i].names_Boltz_psi[j])
+#        self.length_names_elec_sorpt = len(self.names_elec_sorpt)
+        # Block
+       # if not hasattr(self, 'pseudoS_length_rows'):
+            # self.pseudoS_length_rows = len(self.list_aq_reactions) + len(self.list_sorpt_reactions)
+         #   self.pseudoS_length_rows = self.length_aq_sec_sp + self.length_sorpt_sec_sp
+        #S_electro = np.zeros((self.pseudoS_length_rows, self.length_names_elec_sorpt))
+        #col_position = 0
+        #for i in range(0, self.length_sorpt_pri_sp):
+       #     sub_B = self.create_stoichiometric_surfacepotential (self.names_sorpt_pri_sp[i], self.list_sorpt_pri_sp[i].type_sorption)
+        #    if len(sub_B.shape) == 1:
+      #          S_electro[:, col_position] = sub_B
+     #           col_position += 1 
+    #        elif len(sub_B.shape) == 2:
+   #             old_col_position = col_position
+  #              col_position = col_position + sub_B.shape[1]
+ #               S_electro[:, old_col_position:col_position] = sub_B
+#        self.S_electro = S_electro    
+        
+        
+        
+        
         
     # creates stoichiometric blocks    
     def create_stoichiometric_surfacepotential (self, name_pri_sp, type_sorpt):
@@ -497,8 +564,19 @@ class ChemSys_Surf (Database_SC):
         A = 50.29158649e8*np.sqrt(self.waterdensity)
         B = np.sqrt(self.temperature*self.dielectric_constant)
         self.B_activitypar = A/B
-        
-        
+    
+    def calculate_waterdensity (self):
+        '''
+            Calculates the density of the water
+            The extra-calculations are baased on the book section 1.1.2.6 Calculation of activity coefficient -- Groundwater Geochemistry --- Broder J. Merkel, Britta Planer-Friedrich
+        '''
+        Tc = self.Temp_k - 273.15
+        A = (Tc-3.9863)**2
+        B = Tc + 288.9414
+        C = Tc + 68.12963
+        D = (A*B)/(508929.2*C)
+        E = 0.011445*np.exp(-374.3/Tc)
+        self.waterdensity = 1 - D + E  
         
         
         ############################################################################
@@ -1107,7 +1185,7 @@ class ChemSys_Surf (Database_SC):
         
     def calculate_ionic_strength (self,c):
         '''
-            Calculate the ion strength: The vector C is supossed to be a vectorof concentrations that contains first the aqueous primary species followed by the aqueous secondary species. 
+            Calculate the ion strength: The vector C is supossed to be a vector of concentrations that contains first the aqueous primary species followed by the aqueous secondary species. 
             Both primary and secondary species are supossed to be order in the same order that the one of the class, namely self.
         '''
         if self.ionic_strength_constant:
@@ -1129,7 +1207,25 @@ class ChemSys_Surf (Database_SC):
         return Ionic_s
     
     
+    def calculate_log_activity_coefficient_aq_pri_species (self, ionic_strength):
+        log_coef_a=np.zeros(self.length_aq_pri_sp)
+        for i in range(0, self.length_aq_pri_sp):
+            if self.list_aq_pri_sp[i].name == 'H2O':
+                # water has not coefficient activity (or it is 0). For water the activity is calculated directly with Garrels and Christ (1965) forumla
+                log_coef_a[i] = 0
+            else:
+                log_coef_a[i] = self.list_aq_pri_sp[i].log_coefficient_activity(ionic_strength, A=self.A_activitypar, B = self.B_activitypar )
+        return log_coef_a
     
+    def calculate_log_activity_coefficient_aq_sec_species (self, ionic_strength):
+        log_coef_a=np.zeros(self.length_aq_sec_sp)
+        for i in range(0, self.length_aq_sec_sp):
+            if self.list_aq_sec_sp[i].name == 'H2O':
+                # water has not coefficient activity (or it is 0). For water the activity is calculated directly with Garrels and Christ (1965) forumla
+                log_coef_a[i] = 0
+            else:
+                log_coef_a[i] = self.list_aq_sec_sp[i].log_coefficient_activity(ionic_strength, A=self.A_activitypar, B = self.B_activitypar )
+        return log_coef_a
     
     
     def Bethke_algorithm (self, tolerance = 1e-6, max_n_iterations = 100):
@@ -1173,13 +1269,153 @@ class ChemSys_Surf (Database_SC):
          As before, the algorithm can be divided in different U parts. For instance the last row, using the algorithm provided by Bethe must be decoupled of the matrix.
         ''' 
         
+        # Instantiation of first guesses
+        nw_guess = 1                # So we are supossing that the initial amount of water is 1, actually it must change
+        mi_guess = (0.9*self.aq_u_vector[1:])*nw_guess
+        mp_guess = (0.9*self.create_sorpt_vec())
+        Boltzfactor_guess =  np.ones(self.length_names_elec_sorpt)               # Boltzfactor ==> exp(-psi*F/RT)  Later I will need psi but not yet. Now I only need the boltzman factor for mj and mp guesses
         
+        S1, S2 = self.separte_S_into_S1_and_S2()
+        S_prima = -np.matmul(np.linalg.inv(S2),S1)
+        log_K_prima = np.matmul(np.linalg.inv(S2), self.log_k_vector)
         
+        ionic_strength = 0  # self.calculate_ionic_strength (c_aqueouspecies)
+        log_a_water = np.log10(1-(0.018*np.sum(mi_guess)))              # calculating the log activity of water (water has not coefficient)
+        log_a_coeff_aq_pri_sp = self.calculate_log_activity_coefficient_aq_pri_species (ionic_strength)
+        log_a_coeff_aq_sec_sp = self.calculate_log_activity_coefficient_aq_sec_species (ionic_strength)
         
+        mj_and_mq_guess = self.log_speciation_secondaryspecies_Bethke (log_a_water, log_a_coeff_aq_pri_sp, log_a_coeff_aq_sec_sp, mi_guess, mp_guess, Boltzfactor_guess,S_prima, log_K_prima)
+        mj_and_mq_guess = 10**mj_and_mq_guess
+        mj = mj_and_mq_guess[:self.length_aq_sec_sp]
+        mq = mj_and_mq_guess[self.length_aq_sec_sp:]
+        
+        err = 1 
+        while err>tolerance and counter_iterations < max_n_iterations:
+            #### Residual function ####
+            
+            
+            
+            
+            
+            
         return []
+    
+    
+    def log_speciation_secondaryspecies_Bethke (self, log_a_water, log_a_coeff_aq_pri_sp, log_a_coeff_aq_sec_sp, mi, mp, Boltzfactor,S_prima, log_K_prima):
+        '''
+            Speciation to find the log of aqueous secondary species (mj) and sorption secondary species (mq). 
+            log(mj_and_mq) = log_K_prima +  S_prima*[log(mi_and_mp_and_Boltzfactor) + log_activity_coefficient_mi] - log_activity_coefficient_mj
+            
+            S_prima = np.matmul(np.linalg.inv(S2), self.log_k_vector)
+            log_k_prima = np.matmul(np.linalg.inv(S2), self.log_k_vector)
+            
+        '''
+        PartA = log_K_prima
+        # making [log(mi_and_mp_and_Boltzfactor) + log_activity_coefficient_mi]
+        # THIS algorithm uses Bethke approach hence water is at first position
+        log_a_mi = np.log10(mi) + log_a_coeff_aq_pri_sp[1:]       # the log_a_coeff_aq_pri_sp has a 0 enctrance in the first position due to water, it is removed therefore
+        log_mp = np.log10(mp)
+        log_Boltzfactor = np.log10(Boltzfactor)
+        
+        log_pri = np.concatenate((log_a_water, log_a_mi, log_mp, log_Boltzfactor),axis=1)
+        PartB = np.matmul(S_prima, log_pri)
+        
+        PartC = np.concatenate((log_a_coeff_aq_sec_sp, np.zeros(self.length_sorpt_sec_sp)))
+        
+        return PartA + PartB - PartC
+        
 ###########Under Revision###########################################################################
  
-
+  
+        # Calculations out of the loop that are needed on the loop
+        #∑_j v_wj*v_ij
+        #           | 1 0  0 2 1 |                                       | 0 0 0 2 -1 |
+        # e.g: U =  | 0 2  3 1 -1|   if the first row is water then WV = | -1 0 0 0 -1 |
+        #           | -1 2 3 0 -1|    
+        #
+        # Notice that the U will never be like in the example, because the primary species values should be an identity matrix.
+        #                                   
+        WV= np.multiply(self.U2[ind,:], self.U2[1:,:])
+        
+        # identity size m1
+        I = np.identity(self.n_species-self.n_reactions-1)
+        
+        # Updates before loop
+        
+        nps = len(self.name_primary_species)
+        delta_c = np.zeros(nps);
+        counter_iterations = 0;
+        S1, S2 = self.separte_S_into_S1_and_S2()
+        S_prima = -np.matmul(np.linalg.inv(S2),S1)
+        log_K_prima = np.matmul(np.linalg.inv(S2), self.log_k_vector)
+        
+        
+        nw_guess = 1                # So we are supossing that the initial amount of water is 1, actually it must change
+        m1_guess = (0.9*self.u_comp_vec[1:])*nw_guess
+        
+        ct = np.concatenate((np.concatenate(([55.5087], m1_guess)), np.zeros(self.n_reactions)))
+        ionic_strength = 0  #ionic_strength = self.calculate_ionic_strength (ctemp)
+        log_activity_coefficient = self.calculate_log_activity_coefficient (ionic_strength, ct)
+         
+        
+        m2_guess=self.log_speciation_secondaryspecies (np.concatenate(([55.5087], m1_guess)), log_activity_coefficient, S_prima, log_K_prima, nps)
+        m2_guess = 10**m2_guess
+        err = 1
+        
+        while err>tolerance and counter_iterations < max_n_iterations:
+            # Calculations that appear on the residual functions and residual jacobian functions
+            # 55.5087+∑_j▒〖v_wj m_j 〗
+            Mw_cal =55.5087 + np.dot(self.U2[ind,:], m2_guess)
+            # m_i+∑_j▒〖v_ij m_j 〗
+            Mi_cal = m1_guess + np.matmul(self.U2[1:,:], m2_guess)
+            #∑_j v_wj*v_ij
+            
+            
+            # Calculate Residual water function
+            rw = nw_guess*Mw_cal
+            # Calculate Residual component function
+            ri = nw_guess*Mi_cal
+            # Residual function
+            R = np.concatenate(([rw], ri)) - self.u_comp_vec
+            
+            # Jacobian part
+            Jww = Mw_cal
+            Jwi = np.multiply((nw_guess/m1_guess), np.matmul(WV,m2_guess))
+            Jiw = Mi_cal
+            Jii = nw_guess*I + nw_guess*self.Jii_partB_calculation(m1_guess, m2_guess)
+            # concatanate
+            Jw = np.concatenate(([Jww], Jwi), axis=0)
+            Ji = np.c_[Jiw, Jii]
+            J = np.vstack((Jw, Ji))
+            
+            # Solution Newthon-Raphson
+            delta_c = np.linalg.solve(J,-R)
+            err = max(abs(delta_c))
+            # relaxation factor
+            max_1 = 1;
+            max_2 =(-2*delta_c[0])/nw_guess
+            max_3 = np.amax(-2*np.multiply(delta_c[1:], 1/m1_guess))
+            Max_f = np.amax([max_1, max_2, max_3])
+            Del_mul = 1/Max_f
+            # Update guesses
+            nw_guess = nw_guess + Del_mul*delta_c[0]
+            m1_guess  = m1_guess  + Del_mul*delta_c[1:]
+            
+            # Update others
+            ctemp = np.concatenate((np.concatenate(([55.5087], m1_guess)), m2_guess))
+            ionic_strength = self.calculate_ionic_strength (ctemp)
+            log_activity_coefficient = self.calculate_log_activity_coefficient (ionic_strength, ct)
+            m2_guess=self.log_speciation_secondaryspecies (np.concatenate(([55.5087], m1_guess)), log_activity_coefficient, S_prima, log_K_prima, nps)
+            m2_guess = 10**m2_guess
+            
+            counter_iterations +=1
+            
+        if counter_iterations >= max_n_iterations:
+            raise ValueError('Max number of iterations surpassed.')
+        c_n = np.concatenate((np.concatenate(([55.5087], m1_guess)), m2_guess))
+        self.c = c_n
+        self.mass_water = nw_guess
+        return c_n
     
     
 #####################The upper pqrt is under Revision #############################"

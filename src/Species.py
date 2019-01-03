@@ -114,6 +114,7 @@ class Surf_species (Species):
             C2                                          i.e. For the TLM
             names_Boltz_psi                             e.g. name of the electrostatic potential, necessary for assigning names in stoichiometric and component matrices
             type_relation                               i.e. it is a flag that indicates that the following primary species share the electrostatic potential with other species, e.g. Hfo_w shared it with Hfo_s
+            zq                                          i.e. Charge of the solid, for instance Hfo_sOH2+ has a charge of +1.
         methods:
             set_type_sorption (type_sorpt)
             moles_component_solid(mols_or_mols_liter_Tsolid)
@@ -121,8 +122,9 @@ class Surf_species (Species):
             set_type_relation (species_related)
             create_name_electrostatic_potential_type (type_sorpt)
             solid_concentration(Solid_or_SolidConcentration)
-            capacitance_1 (Capacitance_value):
-            capacitance_2 (Capacitance_value):
+            set_capacitance_1 (Capacitance_value)
+            set_capacitance_2 (Capacitance_value)
+            set_surface_charge (z_q)
     '''
     # Constructor
     def __init__(self, name):
@@ -170,7 +172,6 @@ class Surf_species (Species):
         elif type_sorpt == 'TLM':
             return [self.name + '_Boltzf_psi_0', self.name + '_Boltzf_psi_beta', self.name + '_Boltzf_psi_diffuselayer']
         
-        
     # In order to solve the speciation problem with sorption, the number of total moles of the component must be known.
     # These value is not the number of moles of the solid species but the number of moles of the sum of all solid species related to the primary
     # These is what in CHEPROO would be the unknown u_sorptspecies or what Westall call the T_sigma
@@ -201,7 +202,7 @@ class Surf_species (Species):
         '''
         self.solid_concentration_or_grams = float(Solid_or_SolidConcentration)
         
-    def capacitance_1 (self, Capacitance_value):
+    def set_capacitance_1 (self, Capacitance_value):
         '''
             These parameter is defined to the CCM model or to the Triple layer model.
             In each model has a different meaning. Although it is obviously a Capacitance, therefore has units.
@@ -210,7 +211,7 @@ class Surf_species (Species):
         
         self.C1 = float(Capacitance_value)
         
-    def capacitance_2 (self, Capacitance_value):
+    def set_capacitance_2 (self, Capacitance_value):
         '''
             These parameter is defined to the TLM model 
             It is obviously a Capacitance, therefore has units.
@@ -218,3 +219,11 @@ class Surf_species (Species):
         '''
         
         self.C2 = float(Capacitance_value)
+    
+    def set_surface_charge (self, z_q):
+        '''
+            I am not 100% of the use of these variable, but it is reasonable to add the information if we assume that 
+            Hfo_wOH2+ will have a charge of +1, or Hfo_wSO4- will have a charge of -1, also other species can have other values
+            It is questionable the use but Bethe seems to use this approach, in its DLM.
+        '''
+        self.zq = float(z_q)
