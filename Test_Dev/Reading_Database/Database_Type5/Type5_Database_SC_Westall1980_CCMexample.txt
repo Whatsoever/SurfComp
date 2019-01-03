@@ -42,5 +42,5 @@ Surface_Secondary
 SOH2+	1	H+	-1	SOH	-1
 -log_k 7.29
 
-SO-		1	H+	1	SOH	-1
+SO-		-1	H+	1	SOH	-1
 -log_k -8.93

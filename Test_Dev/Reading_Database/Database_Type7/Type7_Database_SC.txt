@@ -45,27 +45,27 @@ Hfo_sOH
 Hfo_wOH
 
 Surface_Secondary
-# Name	#Stochiometric 	#Reaction ('Primary Species' 'Stoichiometric' ....)
+# Name	#Charge_surface #Stochiometric 	#Reaction ('Primary Species' 'Stoichiometric' ....)
 Hfo_sOH2+   1 	Hfo_sOH  -1 	H+ -1
 -log_k  7.29   
 
-Hfo_sO-   1	Hfo_sOH  -1	H+  1
+Hfo_sO-   -1	Hfo_sOH  -1	H+  1
 -log_k  -8.93
 
 Hfo_wOH2+   1 	Hfo_wOH  -1 	H+ -1
 -log_k  7.29   
 
-Hfo_wO-   1	Hfo_wOH  -1	H+  1
+Hfo_wO-   -1	Hfo_wOH  -1	H+  1
 -log_k  -8.93
 
-Hfo_sOPb+ 1	H+  1	Hfo_sOH  -1	Pb+2	-1
+Hfo_sOPb+  1	H+  1	Hfo_sOH  -1	Pb+2	-1
 -log_k  4.65
 
-Hfo_wOPb+ 1 	H+  1 	Hfo_wOH  -1	 Pb+2   -1 
+Hfo_wOPb+  1 	H+  1 	Hfo_wOH  -1	 Pb+2   -1 
 -log_k  0.3
 
-Hfo_wSO4- 1 	H2O	1 	Hfo_wOH -1 	SO4-2 -1 	H+ -1 
+Hfo_wSO4-  -1 	H2O	1 	Hfo_wOH -1 	SO4-2 -1 	H+ -1 
 -log_k   7.78
 
-Hfo_wOHSO4-2	1	Hfo_wOH -1	 SO4-2 -1 
+Hfo_wOHSO4-2	-2	Hfo_wOH -1	 SO4-2 -1 
 -log_k   0.79

@@ -5,7 +5,7 @@ Created on 02/01/2019
 @author: DaniJ
 """
 #
-#               THIS BENCHMARK IS BASED ON THE WORK OF Craig. Bethe "Geochemical and Biogeochemical Reaction Modeling"
+#               THIS BENCHMARK IS BASED ON THE WORK OF Craig. Bethke "Geochemical and Biogeochemical Reaction Modeling"
 #
 
 import numpy as np
@@ -56,7 +56,7 @@ CS.define_system_from_input_and_database ( DS, list_aq_component, list_aq_value,
 CS.create_pseudo_S()
 
 #####
-#### Following the example of Craig Bethe, section 10.4. The reactions having Hg have not been added because where not found in the llnl database
+#### Following the example of Craig Bethke, section 10.4. The reactions having Hg have not been added because where not found in the llnl database
 #### pseudo S shoudl have as columns: H2O, H+, Na+, Cl-, Pb+2, SO4-2, Hfo_sOH, Hfo_wOH, OH-, NaCl, Hfo_sOH2+, Hfo_sO-, Hfo_wOH2+, Hfo_wO-, Hfo_sOPb+, Hfo_wOPb+, Hfo_wSO4-, Hfo_wOHSO4-2
 ### And as rows, it should have the 2 reactions of the aqueous secondary species (OH-, NaCl) and 8 of the secondary surfaces species (Hfo_wOH2+, Hfo_wO-, Hfo_sOPb+, Hfo_wOPb+, Hfo_wSO4-, Hfo_wOHSO4-2)
 ### if nothing has been changed, it should be like:
@@ -76,31 +76,49 @@ print(np.array_equal(CS.pseudoS, pseudoS))
 
 CS.create_S ()
 
-#### Following the example of Borkovec 1983 (Table 1)
-#### S shoudl have as columns: H+, Cl-, Na+, XOH, X_d, OH-, XOH2+, XO-
-#### Note:X_d is the boltzman value of the psi_d of the diffuse layer
-### And as rows, it should have the three reactions of the secondary species (aqueous and surfaces), for OH, for XOH2+ and for XO-
-### It looks in this case if nothing has been changed as:
-S = np.array([[ 1.,  0.,  0.,  0., 0.,  1.,  0.,  0.],[-1.,  0.,  0., -1., -1.,  0.,  1.,  0.],[ 1.,  0.,  0., -1.,  1., 0.,  0.,  1.]])
+#### Following the example of Craig Bethke, section 10.4. The reactions having Hg have not been added because where not found in the llnl database
+#### pseudo S shoudl have as columns: H2O, H+, Na+, Cl-, Pb+2, SO4-2, Hfo_sOH, Hfo_wOH, Hfo_sOH_Boltzf_psi_diffuselayer, OH-, NaCl, Hfo_sOH2+, Hfo_sO-, Hfo_wOH2+, Hfo_wO-, Hfo_sOPb+, Hfo_wOPb+, Hfo_wSO4-, Hfo_wOHSO4-2
+#### Note:Hfo_sOH_Boltzf_psi_diffuselayer is the boltzman value of the psi_d of the diffuse layer
+#### ALTHOUGH it is called Hfo_sOH_Boltzf_psi_diffuselayer it is actually the surface of Hfo_sOH and Hfo_wOH since they share the same surface and therefore the same electrostatic potential. The model just assume to sites weak and strong
+### And as rows, it should have the 2 reactions of the aqueous secondary species (OH-, NaCl) and 8 of the secondary surfaces species (Hfo_wOH2+, Hfo_wO-, Hfo_sOPb+, Hfo_wOPb+, Hfo_wSO4-, Hfo_wOHSO4-2)
+### if nothing has been changed, it should be like:
+S = np.array([[-1.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0., 0.,  0.,  0.,  0.,  0.,  0.], \
+              [ 0.,  0., -1., -1.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0., 0.,  0.,  0.,  0.,  0.,  0.], \
+              [ 0., -1.,  0.,  0.,  0.,  0., -1.,  0., -1.,  0.,  0.,  1.,  0., 0.,  0.,  0.,  0.,  0.,  0.], \
+              [ 0.,  1.,  0.,  0.,  0.,  0., -1.,  0.,  1.,  0.,  0.,  0.,  1., 0.,  0.,  0.,  0.,  0.,  0.], \
+              [ 0., -1.,  0.,  0.,  0.,  0.,  0., -1., -1.,  0.,  0.,  0.,  0., 1.,  0.,  0.,  0.,  0.,  0.], \
+              [ 0.,  1.,  0.,  0.,  0.,  0.,  0., -1.,  1.,  0.,  0.,  0.,  0., 0.,  1.,  0.,  0.,  0.,  0.], \
+              [ 0.,  1.,  0.,  0., -1.,  0., -1.,  0., -1.,  0.,  0.,  0.,  0., 0.,  0.,  1.,  0.,  0.,  0.], \
+              [ 0.,  1.,  0.,  0., -1.,  0.,  0., -1., -1.,  0.,  0.,  0.,  0., 0.,  0.,  0.,  1.,  0.,  0.], \
+              [ 1., -1.,  0.,  0.,  0., -1.,  0., -1.,  1.,  0.,  0.,  0.,  0., 0.,  0.,  0.,  0.,  1.,  0.], \
+              [ 0.,  0.,  0.,  0.,  0., -1.,  0., -1.,  2.,  0.,  0.,  0.,  0., 0.,  0.,  0.,  0.,  0.,  1.]])
 
 print(np.array_equal(CS.S, S))
 
 
 CS.create_U ()
 
-#### Following the example of Borkovec 1983 (Table 1)
-#### U shoudl have as columns: H+, Cl-, Na+, XOH, X_d, OH-, XOH2+, XO-
-#### Note:X_d is the boltzman value of the psi_d of the diffuse layer
-### And as tows, it should have the component made up of the following primary species =>  H+, Cl-, Na+, XOH, X_d
-U = np.array([[ 1.,  0.,  0.,  0.,  0., -1.,  1., -1.], [ 0.,  1.,  0.,  0.,  0., -0., -0., -0.], [ 0.,  0.,  1.,  0.,  0., -0., -0., -0.], [ 0.,  0.,  0.,  1.,  0., -0.,  1.,  1.], [ 0.,  0.,  0.,  0.,  0., -0.,  1., -1.]])
+#### Following the example of Craig Bethke, section 10.4. The reactions having Hg have not been added because where not found in the llnl database and therefore also the Hg component
+#### U shoudl have as columns: H2O, H+, Na+, Cl-, Pb+2, SO4-2, Hfo_sOH, Hfo_wOH, Hfo_sOH_Boltzf_psi_diffuselayer, OH-, NaCl, Hfo_sOH2+, Hfo_sO-, Hfo_wOH2+, Hfo_wO-, Hfo_sOPb+, Hfo_wOPb+, Hfo_wSO4-, Hfo_wOHSO4-2
+### And as tows, it should have the component made up of the following primary species =>  H2O, H+, Na+, Cl-, Pb+2, SO4-2, Hfo_sOH, Hfo_wOH, Hfo_sOH_Boltzf_psi_diffuselayer
+U = np.array([[ 1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  1., -0.,  0., -0., -0., -0., -0., -0., -1., -0.], \
+              [ 0.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  0., -1., -0.,  1., -1., 1., -1., -1., -1.,  1., -0.], \
+              [ 0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  0., -0.,  1., -0., -0., -0., -0., -0., -0., -0., -0.], \
+              [ 0.,  0.,  0.,  1.,  0.,  0.,  0.,  0.,  0., -0.,  1., -0., -0., -0., -0., -0., -0., -0., -0.], \
+              [ 0.,  0.,  0.,  0.,  1.,  0.,  0.,  0.,  0., -0., -0., -0., -0., -0., -0.,  1.,  1., -0., -0.], \
+              [ 0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0., -0., -0., -0., -0., -0., -0., -0., -0.,  1.,  1.], \
+              [ 0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0., -0., -0.,  1.,  1., -0., -0.,  1., -0., -0., -0.], \
+              [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0., -0., -0., -0., -0., 1.,  1., -0.,  1.,  1.,  1.], \
+              [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0., -0., -0.,  1., -1., 1., -1.,  1.,  1., -1., -2.]])
 
 print(np.array_equal(CS.U, U))
 
 CS.create_log_k_vector()
 
-# Case example 5
-# c_ = [H+, AsO4-3, SurfOH, Boltzman_SurfOH, OH-, H3AsO4, HAsO4-2, H2AsO4-, SurfOH2+, SurfO-, SurfH2AsO4, SurfHAsO4-, SurfOHAsO4-3]
-#c_guess = np.array([7.864e-09, 2.626e-28, 5.373e-02, 9.975e-01, 1.315e-06, 5.634e-32, 6.126e-25, 4.211e-26, 8.133e-03, 8.133e-03, 1.219e-10, 2.488e-08, 4.910e-19])
-CS.speciation_Borkovec_1983_DLM()
+# Case Craig Bethke, section 10.4.
+# c_ = [H2O, H+, Na+, Cl-, Pb+2, SO4-2, Hfo_sOH, Hfo_wOH, Hfo_sOH_Boltzf_psi_diffuselayer, OH-, NaCl, Hfo_sOH2+, Hfo_sO-, Hfo_wOH2+, Hfo_wO-, Hfo_sOPb+, Hfo_wOPb+, Hfo_wSO4-, Hfo_wOHSO4-2]
+#c_guess = np.array([])
+#tolerance = 1e-6, max_n_iterations = 100
+CS.Bethke_algorithm ()
 
-CS.print_speciation_Borkovec()
+

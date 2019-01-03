@@ -14,5 +14,5 @@ Sorption
 Hfo_sOH  						0.005   				600. 					1
 -type DLM
 Hfo_wOH							0.2					600					1
--type	related		Hfo_s 				
+-type	related		Hfo_sOH 				
 
