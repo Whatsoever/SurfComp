@@ -271,7 +271,7 @@ class ChemSys_Surf (Database_SC):
         self.index_related_sorpt_pri = []
         for i in range(0,self.length_sorpt_pri_sp):
             if hasattr(self.list_sorpt_pri_sp[i], 'type_relation'):                         # related species should be defined in the list_sorpt_pri_sp after the leading species.
-                index_related_sorpt_pri.append(self.names_sorpt_pri_sp.index(self.list_sorpt_pri_sp[i].type_relation))
+                self.index_related_sorpt_pri.append(self.names_sorpt_pri_sp.index(self.list_sorpt_pri_sp[i].type_relation))
             elif isinstance(self.list_sorpt_pri_sp[i].names_Boltz_psi, str):
                 self.names_elec_sorpt.append(self.list_sorpt_pri_sp[i].names_Boltz_psi)
             elif isinstance(self.list_sorpt_pri_sp[i].names_Boltz_psi, list):
@@ -535,7 +535,7 @@ class ChemSys_Surf (Database_SC):
             Calculates the density of the water
             The extra-calculations are baased on the book section 1.1.2.6 Calculation of activity coefficient -- Groundwater Geochemistry --- Broder J. Merkel, Britta Planer-Friedrich
         '''
-        Tc = self.Temp_k - 273.15
+        Tc = self.temperature - 273.15
         A = (Tc-3.9863)**2
         B = Tc + 288.9414
         C = Tc + 68.12963
@@ -1200,7 +1200,7 @@ class ChemSys_Surf (Database_SC):
         '''
         # Check that water is on the database as primary species and has the first possition
         # So far, for simplicity I leave the thing with the H2O like that but it can be changed.
-        ind = self.name_primary_species.index('H2O')
+        ind = self.names_aq_pri_sp.index('H2O')
         if not (ind == 0):
             raise ValueError('[ChemSys/bethke_algorithm] -->To use this algortihm water must be on the first position of the primary species. \n')
         
@@ -1236,9 +1236,9 @@ class ChemSys_Surf (Database_SC):
         
         # Instantiation of first guesses
         nw = 1                # So we are supossing that the initial amount of water is 1, actually it must change
-        mi = (0.9*self.aq_u_vector[1:])*nw
+        mi = (0.9*np.array(self.aq_u_vector[1:]))*nw
         Mp= self.create_sorpt_vec()
-        mp = (0.9*Mp)
+        mp = (0.9*np.array(Mp))
         Boltzfactor =  np.ones(self.length_names_elec_sorpt)               # Boltzfactor ==> exp(-psi*F/RT)  Later I will need psi but not yet. Now I only need the boltzman factor for mj and mp guesses
         
         S1, S2 = self.separte_S_into_S1_and_S2()
@@ -1269,7 +1269,7 @@ class ChemSys_Surf (Database_SC):
         WV_and_WP= np.multiply(U2[0,:], U2[1:length_aq_sorpt_pri,:])    # The matrix WV and WP contain the terms v_wj*v_ij, v_wq*v_iq and the terms v_wq*v_pq
         
         
-        I = np.identity(length_aq_sorpt_pri)                            # The delta of equation (10.33) of Craig M. Bethke's book
+        I = np.identity(length_aq_sorpt_pri-1)                            # The delta of equation (10.33) of Craig M. Bethke's book
         
         
         # Ini error parameter
@@ -1308,9 +1308,9 @@ class ChemSys_Surf (Database_SC):
             Jii_Jip_and_Jpi_Jpp = nw*I + nw*self.Js_partB_calculation(mi_and_mp, mj_and_mq, U2[1:length_aq_sorpt_pri,:])
             
             # Assembling
-            Jw = np.vstack((Jww,Jiw,Jpw))
+            Jw = np.concatenate(([Jww],Jiw,Jpw))
             Jip = np.vstack((Jwp_and_Jwq, Jii_Jip_and_Jpi_Jpp))
-            J = np.concatenate((Jw,Jip),axis=0)
+            J = np.c_[Jw,Jip]
             
              # Solution Newthon-Raphson
             delta_c = np.linalg.solve(J,-R)
@@ -1344,8 +1344,8 @@ class ChemSys_Surf (Database_SC):
             #### SECOND ITERATION LOOP #####
             # Newton approach for the psi potential
             # Parameter before loop
-            a =  np.matmul(U[length_aq_sorpt_pri,:], mq)
-            da_dpsi = (self.Faraday_constant/(self.universal_gas_constant*self.temperature))*np.matmul(np.power(U[length_aq_sorpt_pri,:],2), mq)
+            a =  np.matmul(U2[length_aq_sorpt_pri,self.length_aq_sec_sp:], mq)
+            da_dpsi = (self.Faraday_constant/(self.universal_gas_constant*self.temperature))*np.matmul(np.power(U2[length_aq_sorpt_pri,self.length_aq_sec_sp:],2), mq)
             ionic_strength_n = self.calculate_ionic_strength (np.concatenate(([55.5], mi, mj)))
             Area_v = self.calculate_A_sf_Bethke()
             # Ini error parameter
@@ -1355,7 +1355,7 @@ class ChemSys_Surf (Database_SC):
             charge_background_solute = 1
             while err_psi>tolerance_psi and counter_iterations_psi < max_n_iterations_psi:
                 # calculate f and df
-                f, df = self.calculate_f_df_psi_equation_10_37_38_Bethke(Area_v,psi, ionic_strength, nw, charge_background_solute)
+                f, df = self.calculate_f_df_psi_equation_10_37_38_Bethke(Area_v,psi, ionic_strength_n, nw, charge_background_solute)
                 # R and DR
                 R = f-a
                 dR = df + da_dpsi
@@ -1410,7 +1410,7 @@ class ChemSys_Surf (Database_SC):
         log_mp = np.log10(mp)
         log_Boltzfactor = np.log10(Boltzfactor)
         
-        log_pri = np.concatenate((log_a_water, log_a_mi, log_mp, log_Boltzfactor),axis=1)
+        log_pri = np.concatenate(([log_a_water], log_a_mi, log_mp, log_Boltzfactor))
         PartB = np.matmul(S_prima, log_pri)
         
         PartC = np.concatenate((log_a_coeff_aq_sec_sp, np.zeros(self.length_sorpt_sec_sp)))
@@ -1427,12 +1427,11 @@ class ChemSys_Surf (Database_SC):
         for i in range(0, self.length_sorpt_pri_sp):
             # It is assumed that related species have been defined after
             if hasattr(self.list_sorpt_pri_sp[i], 'type_relation'):
-                A = self.length_sorpt_pri_sp[i].sp_surf_area*self.length_sorpt_pri_sp[i].solid_concentration_or_grams
+                A = self.list_sorpt_pri_sp[i].sp_surf_area*self.list_sorpt_pri_sp[i].solid_concentration_or_grams
                 A_sf[self.index_related_sorpt_pri[counter_related_sp]] = A_sf[self.index_related_sorpt_pri[counter_related_sp]] + A
             else:
-                A_sf.append(self.length_sorpt_pri_sp[i].sp_surf_area*self.length_sorpt_pri_sp[i].solid_concentration_or_grams)
-            
-        return A_sf
+                A_sf.append(self.list_sorpt_pri_sp[i].sp_surf_area*self.list_sorpt_pri_sp[i].solid_concentration_or_grams)
+        return np.array(A_sf)
     
     def calculate_f_df_psi_equation_10_37_38_Bethke(self, Area_v,psi, ionic_strength, nw, charge_background_solute):
         '''

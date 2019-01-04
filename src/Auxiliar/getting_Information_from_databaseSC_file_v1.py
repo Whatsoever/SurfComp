@@ -7,7 +7,7 @@ Created on Fri Nov  9 11:44:06 2018
 import compilation_functions_reading_file as cfrf
 
 
-def getting_information_from_databaseSC_file_v1 (text):
+def getting_Information_from_databaseSC_file_v1 (text):
     #text = 'Type1.txt' Reading text
     f = open(text, 'r')
     lines = f.readlines()
