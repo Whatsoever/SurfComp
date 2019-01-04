@@ -1349,20 +1349,24 @@ class ChemSys_Surf (Database_SC):
             ionic_strength_n = self.calculate_ionic_strength (np.concatenate(([55.5], mi, mj)))
             Area_v = self.calculate_A_sf_Bethke()
             # Ini error parameter
-            err_psi = 1 
+            err_psis = 1 
             counter_iterations_psi = 0;
             psi = self.Boltzman_factor_2_psi (Boltzfactor)
             charge_background_solute = 1
-            while err_psi>tolerance_psi and counter_iterations_psi < max_n_iterations_psi:
+            while err_psis>tolerance_psi and counter_iterations_psi < max_n_iterations_psi:
                 # calculate f and df
-                f, df = self.calculate_f_df_psi_equation_10_37_38_Bethke(Area_v,psi, ionic_strength_n, nw, charge_background_solute)
+                f, df = self.calculate_f_df_psi_equation_10_37_38_Bethke(Area_v,psi, ionic_strength, nw, charge_background_solute)
                 # R and DR
                 R = f-a
                 dR = df + da_dpsi
                 # solution
                 delta_psis = -R/dR
+                print(delta_psis) 
+                if delta_psis - 1.16823329e-05 < 1e-5:
+                    a=2
                 # error 
-                err_psi = max(abs(delta_psis))
+                err_psis = max(abs(delta_psis))
+
                 # relaxation factor
                 max_1 = 1;
                 max_2 =(-2*delta_psis)/psi
