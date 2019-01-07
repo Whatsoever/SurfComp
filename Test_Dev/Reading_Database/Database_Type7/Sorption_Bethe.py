@@ -121,6 +121,8 @@ CS.create_log_k_vector()
 #tolerance = 1e-6, max_n_iterations = 100
 CS.Bethke_algorithm ()
 
-CS.print_speciation()
+#CS.speciation_Borkovec_1983_DLM(tolerance = 1e-8) --> give similar results als Phreeqc
 
+#CS.print_speciation()
+CS.print_speciation_Borkovec()
 

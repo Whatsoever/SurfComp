@@ -704,7 +704,7 @@ class ChemSys_Surf (Database_SC):
         # The values of the vector X must be instantiated
         sorpt_u_vector = self.create_sorpt_vec()
         T_chem = np.concatenate ((self.aq_u_vector, sorpt_u_vector))
-        T = np.concatenate((T_chem, np.zeros(self.length_sorpt_pri_sp)))
+        T = np.concatenate((T_chem, np.zeros(self.length_names_elec_sorpt)))
         # concentration of the components_ initial instantiation
         Xd = 1.1;   # <-- This part might be changed by an instantiation function
         X = np.concatenate((T_chem, np.array([Xd])))
@@ -1193,7 +1193,7 @@ class ChemSys_Surf (Database_SC):
         return log_coef_a
     
     
-    def Bethke_algorithm (self, tolerance = 1e-6, max_n_iterations = 100, tolerance_psi = 1e-6, max_n_iterations_psi = 100):
+    def Bethke_algorithm (self, tolerance = 1e-6, max_n_iterations = 100, tolerance_psi = 1e-6, max_n_iterations_psi = 800, tolerance_big_loop = 1e-6, max_n_iterations_big_loop = 100):
         '''
             These algortihm implementation is based on Geochemical and Biogeochemical reaction modeling from Craig M.Bethke
             section_10.3
@@ -1239,7 +1239,7 @@ class ChemSys_Surf (Database_SC):
         mi = (0.9*np.array(self.aq_u_vector[1:]))*nw
         Mp= self.create_sorpt_vec()
         mp = (0.9*np.array(Mp))
-        Boltzfactor =  np.ones(self.length_names_elec_sorpt)               # Boltzfactor ==> exp(-psi*F/RT)  Later I will need psi but not yet. Now I only need the boltzman factor for mj and mp guesses
+        Boltzfactor =  np.ones(self.length_names_elec_sorpt)              # Boltzfactor ==> exp(-psi*F/RT)  Later I will need psi but not yet. Now I only need the boltzman factor for mj and mp guesses
         
         S1, S2 = self.separte_S_into_S1_and_S2()
         S_prima = -np.matmul(np.linalg.inv(S2),S1)
@@ -1272,118 +1272,145 @@ class ChemSys_Surf (Database_SC):
         I = np.identity(length_aq_sorpt_pri-1)                            # The delta of equation (10.33) of Craig M. Bethke's book
         
         
-        # Ini error parameter
-        err = 1 
-        counter_iterations = 0;
-        # First loop, Newton-Raphson
-        while err>tolerance and counter_iterations < max_n_iterations:
-            #### Residual vector ####
-            # water ##### 
-            Jww = 55.5 + np.dot(U2[0,:],mj_and_mq)
-            rw = nw*Jww
-            
-            # aqueous primary species ####
-            Jiw = mi + np.matmul(U2[1:self.length_aq_pri_sp,:], mj_and_mq)
-            ri = nw*Jiw
-            
-            # sorption primary species ####
-            Jpw = mp + np.matmul(U2[self.length_aq_pri_sp:length_aq_sorpt_pri,:], mj_and_mq)    # Actually it should be only ∑_q v_pq*mq but the terms of v_pj are 0 (At least theoretically, I hope). So the equaiton is ok.
-            rp =  nw*Jpw
-            
-            # assamble
-            r = np.concatenate(([rw], ri, rp))
-            # R functions evaluated
-            R = r - M
-            
-            ####### Jacobian matrix #########
-            # parameters Jww, Jiw, and Jpw already calculated
-            # Jwp and Jwq are calculated together due to the U matrix is defined by using WV_and_WP*mj_and_mq
-            jwp_and_jwq = np.matmul(WV_and_WP,mj_and_mq) 
-            mi_and_mp = np.concatenate((mi,mp))
-            Jwp_and_Jwq = np.multiply((nw/mi_and_mp), jwp_and_jwq)
-            
-            # If my intuition do not fool me, it should be possible to calculate the part of the Jacobian matrix [equation (10.34) of Craig books'] that comprises the terms Jii', Jip, Jpi, and Jpp'
-            # In the same way that Jii when having only speciaiton (section 4 of the book) or in the same way that Jwp and Jwq was possible to be calculated together.
-            
-            Jii_Jip_and_Jpi_Jpp = nw*I + nw*self.Js_partB_calculation(mi_and_mp, mj_and_mq, U2[1:length_aq_sorpt_pri,:])
-            
-            # Assembling
-            Jw = np.concatenate(([Jww],Jiw,Jpw))
-            Jip = np.vstack((Jwp_and_Jwq, Jii_Jip_and_Jpi_Jpp))
-            J = np.c_[Jw,Jip]
-            
-             # Solution Newthon-Raphson
-            delta_c = np.linalg.solve(J,-R)
-            err = max(abs(delta_c))
-            # relaxation factor
-            max_1 = 1;
-            max_2 =(-2*delta_c[0])/nw
-            max_3 = np.amax(-2*np.multiply(delta_c[1:self.length_aq_pri_sp], 1/mi))
-            max_4 = np.amax(-2*np.multiply(delta_c[self.length_aq_pri_sp:], 1/mp))
-            Max_f = np.amax([max_1, max_2, max_3, max_4])
-            Del_mul = 1/Max_f
-            
-            # Update guesses
-            nw = nw + Del_mul*delta_c[0]
-            mi = mi + Del_mul*delta_c[1:self.length_aq_pri_sp]
-            mp = mp + Del_mul*delta_c[self.length_aq_pri_sp:]
-            
-            # Update secondaries
-            
-            ionic_strength = self.calculate_ionic_strength (np.concatenate(([55.5], mi, mj)))
-            log_a_water = np.log10(1-(0.018*(np.sum(mi)+np.sum(mj))))              # calculating the log activity of water (water has not coefficient)
-            log_a_coeff_aq_pri_sp = self.calculate_log_activity_coefficient_aq_pri_species (ionic_strength)
-            log_a_coeff_aq_sec_sp = self.calculate_log_activity_coefficient_aq_sec_species (ionic_strength)
         
-            mj_and_mq = self.log_speciation_secondaryspecies_Bethke (log_a_water, log_a_coeff_aq_pri_sp, log_a_coeff_aq_sec_sp, mi, mp, Boltzfactor,S_prima, log_K_prima)
-            mj_and_mq = 10**mj_and_mq
+        
+        Area_v = self.calculate_A_sf_Bethke()
+        charge_background_solute = 1
+        
+        c_minus1 = np.zeros(length_pri + self.length_aq_sec_sp + self.length_sorpt_sec_sp)
+    
+        ## I have 2 loops: 1) It is a Newton-Raphson methods that must be solved. Once solved, the values are used to calculate a new value of the surface potential.
+        # So this 2 loops are contained in other loop
+        
+        err_big_loop = 1
+        counter_iterations_big_loop = 0
+        while err_big_loop> tolerance_big_loop and counter_iterations_big_loop < max_n_iterations_big_loop:
+            # Ini error parameter
+            err = 1 
+            counter_iterations = 0;
+
+            # First loop, Newton-Raphson
+            while err>tolerance and counter_iterations < max_n_iterations:
+                #### Residual vector ####
+                # water ##### 
+                Jww = 55.5 + np.dot(U2[0,:],mj_and_mq)
+                rw = nw*Jww
+                
+                # aqueous primary species ####
+                Jiw = mi + np.matmul(U2[1:self.length_aq_pri_sp,:], mj_and_mq)
+                ri = nw*Jiw
+                
+                # sorption primary species ####
+                Jpw = mp + np.matmul(U2[self.length_aq_pri_sp:length_aq_sorpt_pri,:], mj_and_mq)    # Actually it should be only ∑_q v_pq*mq but the terms of v_pj are 0 (At least theoretically, I hope). So the equaiton is ok.
+                rp =  nw*Jpw
+                
+                # assamble
+                r = np.concatenate(([rw], ri, rp))
+                # R functions evaluated
+                R = r - M
+                print(R)
+                ####### Jacobian matrix #########
+                # parameters Jww, Jiw, and Jpw already calculated
+                # Jwp and Jwq are calculated together due to the U matrix is defined by using WV_and_WP*mj_and_mq
+                jwp_and_jwq = np.matmul(WV_and_WP,mj_and_mq) 
+                mi_and_mp = np.concatenate((mi,mp))
+                Jwp_and_Jwq = np.multiply((nw/mi_and_mp), jwp_and_jwq)
             
-            mj = mj_and_mq[:self.length_aq_sec_sp]
-            mq = mj_and_mq[self.length_aq_sec_sp:]
+                # If my intuition do not fool me, it should be possible to calculate the part of the Jacobian matrix [equation (10.34) of Craig books'] that comprises the terms Jii', Jip, Jpi, and Jpp'
+                # In the same way that Jii when having only speciaiton (section 4 of the book) or in the same way that Jwp and Jwq was possible to be calculated together.
+                
+                Jii_Jip_and_Jpi_Jpp = nw*I + nw*self.Js_partB_calculation(mi_and_mp, mj_and_mq, U2[1:length_aq_sorpt_pri,:])
+                
+                # Assembling
+                Jw = np.concatenate(([Jww],Jiw,Jpw))
+                Jip = np.vstack((Jwp_and_Jwq, Jii_Jip_and_Jpi_Jpp))
+                J = np.c_[Jw,Jip]
+                
+                # Solution Newthon-Raphson
+                delta_c = np.linalg.solve(J,-R)
+                err = max(abs(delta_c))
+                #print(err)
+                # relaxation factor
+                max_1 = 1;
+                max_2 =(-2*delta_c[0])/nw
+                max_3 = np.amax(-2*np.multiply(delta_c[1:self.length_aq_pri_sp], 1/mi))
+                max_4 = np.amax(-2*np.multiply(delta_c[self.length_aq_pri_sp:], 1/mp))
+                Max_f = np.amax([max_1, max_2, max_3, max_4])
+                Del_mul = 1/Max_f
             
+                # Update guesses
+                nw = nw + Del_mul*delta_c[0]
+                mi = mi + Del_mul*delta_c[1:self.length_aq_pri_sp]
+                mp = mp + Del_mul*delta_c[self.length_aq_pri_sp:]
+                
+                # Update secondaries
+                
+                ionic_strength = self.calculate_ionic_strength (np.concatenate(([55.5], mi, mj)))
+                log_a_water = np.log10(1-(0.018*(np.sum(mi)+np.sum(mj))))              # calculating the log activity of water (water has not coefficient)
+                log_a_coeff_aq_pri_sp = self.calculate_log_activity_coefficient_aq_pri_species (ionic_strength)
+                log_a_coeff_aq_sec_sp = self.calculate_log_activity_coefficient_aq_sec_species (ionic_strength) 
+                mj_and_mq = self.log_speciation_secondaryspecies_Bethke (log_a_water, log_a_coeff_aq_pri_sp, log_a_coeff_aq_sec_sp, mi, mp, Boltzfactor,S_prima, log_K_prima)
+                mj_and_mq = 10**mj_and_mq
+                
+                mj = mj_and_mq[:self.length_aq_sec_sp]
+                mq = mj_and_mq[self.length_aq_sec_sp:]
+                
+                counter_iterations += 1
+            if counter_iterations >= max_n_iterations:
+                raise ValueError('Max number of iterations in chemistry part surpassed.')
+            # First loop terminated. Chemistry values establish
+            # Second loop, loop of values of the psi must be started
             #### SECOND ITERATION LOOP #####
             # Newton approach for the psi potential
             # Parameter before loop
             a =  np.matmul(U2[length_aq_sorpt_pri,self.length_aq_sec_sp:], mq)
             da_dpsi = (self.Faraday_constant/(self.universal_gas_constant*self.temperature))*np.matmul(np.power(U2[length_aq_sorpt_pri,self.length_aq_sec_sp:],2), mq)
-            ionic_strength_n = self.calculate_ionic_strength (np.concatenate(([55.5], mi, mj)))
-            Area_v = self.calculate_A_sf_Bethke()
             # Ini error parameter
             err_psis = 1 
             counter_iterations_psi = 0;
             psi = self.Boltzman_factor_2_psi (Boltzfactor)
-            charge_background_solute = 1
             while err_psis>tolerance_psi and counter_iterations_psi < max_n_iterations_psi:
                 # calculate f and df
                 f, df = self.calculate_f_df_psi_equation_10_37_38_Bethke(Area_v,psi, ionic_strength, nw, charge_background_solute)
                 # R and DR
                 R = f-a
+                print(R)
                 dR = df + da_dpsi
                 # solution
                 delta_psis = -R/dR
-                print(delta_psis) 
-                if delta_psis - 1.16823329e-05 < 1e-5:
-                    a=2
+                # print(delta_psis) 
+
                 # error 
                 err_psis = max(abs(delta_psis))
-
-                # relaxation factor
-                max_1 = 1;
-                max_2 =(-2*delta_psis)/psi
-                Max_f = np.amax([max_1, max_2])
-                Del_mul = 1/Max_f
+                #print(err_psis)
+                ## relaxation factor
+                #max_1 = 1;
+                #max_2 =(-2*delta_psis)/psi
+                #Max_f = np.amax([max_1, max_2])
+                #Del_mul = 1/Max_f
                 
                 # Update guesses
-                psi = psi + Del_mul*delta_psis
+               # psi = psi + Del_mul*delta_psis
+                psi = psi +delta_psis
                 
                 counter_iterations_psi += 1
             if counter_iterations_psi >= max_n_iterations_psi:
-                raise ValueError('Max number of psi iterations surpassed.')
-            # Update Boltzman factor
-            Boltzfactor = np.exp((-self.Faraday_constant/(self.universal_gas_constant*self.temperature))*psi)
-            counter_iterations += 1
+                raise ValueError('Max number of psi iterations in Surface potential part surpassed.')
+            # New Boltzfactor
+            Boltzfactor =  np.exp((-self.Faraday_constant/(self.universal_gas_constant*self.temperature))*psi)
             
-        c_n = np.concatenate(([55.5087], mi, mp, Boltzfactor, mj, mq))
+            #### Update new values to redo loop 1 and 2
+            mj_and_mq = self.log_speciation_secondaryspecies_Bethke (log_a_water, log_a_coeff_aq_pri_sp, log_a_coeff_aq_sec_sp, mi, mp, Boltzfactor,S_prima, log_K_prima)
+            mj_and_mq = 10**mj_and_mq
+                
+            mj = mj_and_mq[:self.length_aq_sec_sp]
+            mq = mj_and_mq[self.length_aq_sec_sp:]
+            
+            c_n = np.concatenate(([55.5087], mi, mp, Boltzfactor, mj, mq))
+            
+            err_big_loop = max(abs(c_n - c_minus1))                 # Absolute error
+            
+            
         self.c = c_n
         self.mass_water = nw
         return c_n
@@ -1441,7 +1468,8 @@ class ChemSys_Surf (Database_SC):
         '''
             It calculates a part of equation 10.37 and 10.38 of 'Goechemical and Biogeochemical reaction modeling' Craig M. Bethke
         '''
-        square_val = np.sqrt(8*self.dielectric_constant*self.permittivity_free_space*self.universal_gas_constant*self.temperature*1000*ionic_strength)
+        #square_val = np.sqrt(8*self.dielectric_constant*self.permittivity_free_space*self.universal_gas_constant*self.temperature*1000*ionic_strength)
+        square_val = np.sqrt(8*self.dielectric_constant*self.permittivity_free_space*self.universal_gas_constant*self.temperature*ionic_strength)
         inner_sincos = ((charge_background_solute*self.Faraday_constant)/(2*self.universal_gas_constant*self.temperature))*psi
         sin_in = np.sinh(inner_sincos)
         cos_in = np.cosh(inner_sincos)
