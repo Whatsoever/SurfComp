@@ -615,6 +615,7 @@ class ChemSys_Surf (Database_SC):
             raise ValueError('Max number of iterations surpassed.')
         self.c = c_n
         return c_n
+    
      
     def speciation_Westall1980_TLM (self, tolerance = 1e-6, max_iterations = 100, c_guess = None):
         '''
@@ -667,6 +668,14 @@ class ChemSys_Surf (Database_SC):
         self.c = c_n
         return c_n
         
+    def speciation_Westall1980_TLMb (self, tolerance = 1e-6, max_iterations = 100, c_guess = None):
+        '''
+            My first Westall1980 algortihmm did not work. I try a similar implementation to the work of Westall to see if like that it works.
+            Implementation of the algorithm given in "Chemical Equilibrium Including Adsorption on Charged Surfaces" Westall, 1980
+            ages 37-to-39
+        '''
+        
+        return c_n
 
     def speciation_Borkovec_1983_DLM (self, tolerance = 1e-6, max_iterations = 100, c_guess = None, A_Borkovec = None, names_col = None, names_row = None ):      
         '''

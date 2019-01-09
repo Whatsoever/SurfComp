@@ -164,8 +164,50 @@ c_guess = np.array([7.864e-09, 2.626e-28, 5.373e-02, 2.459e-07, 1.315e-06, 5.634
 CS.speciation_Westall1980_CCM (c_guess = c_guess)
 CS.print_speciation()
 
+####################################
+# Read database
+database_file = 'Type5_Database_SC_try2.txt'
+# Instantiating database
+n_aq_sp_pri, n_aq_sp_sec, n_sorpt_sp_pri, n_sorpt_sp_sec, Aq_sp_list_pri, Aq_sp_list_sec, Sorp_sp_list_pri, Sorp_sp_list_sec, Aq_list_react, Sorp_list_react = getting_Information_from_databaseSC_file_v1 (database_file)
+#
+DS2 = Database_SC()
+DS2.set_names_aq_primary_species ( n_aq_sp_pri)
+DS2.set_names_aq_secondary_species ( n_aq_sp_sec)
+DS2.set_names_sorpt_primary_species (n_sorpt_sp_pri)
+DS2.set_names_sorpt_secondary_species (n_sorpt_sp_sec)
+DS2.set_aq_list_pri_class (Aq_sp_list_pri)
+DS2.set_aq_list_sec_class (Aq_sp_list_sec)
+DS2.set_sorpt_list_pri_class (Sorp_sp_list_pri)
+DS2.set_sorpt_list_sec_class (Sorp_sp_list_sec)
+DS2.set_aq_reactions_list (Aq_list_react)
+DS2.set_sorpt_reactions_list (Sorp_list_react)
+# Reading input
+infile = 'Type5_Input_SC_TLM_try2.txt'
+# Instantiating input
+list_aq_component, list_aq_value, names_pri_sorpt, list_sorption_comp  = getting_informationSC_input_file_v1 (infile)
+CS1 = ChemSys_Surf()
+CS1.define_system_from_input_and_database ( DS2, list_aq_component, list_aq_value, names_pri_sorpt, List_pri_sorpt_class = list_sorption_comp)
+CS1.create_pseudo_S()
+CS1.create_S ()
+CS1_S = np.array([[ 1.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  0., 0.,  0.], [-3., -1.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,0.,  0.], [-1., -1.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0.,  0., 0.,  0.], \
+                    [-2., -1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0., 0.,  0.], [-1.,  0., -1., -1.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0., 0.,  0.], [1.,  0., -1.,  1.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  1.,  0., 0.,  0], \
+                    [-2., -1., -1., -3.,  3.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  1., 0.,  0.], [-1., -1., -1., -2.,  3.,  0.,  1.,  0.,  0.,  0.,  0.,  0.,  0., 1.,  0.], [0., -1., -1.,  0.,  3.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,0.,  1]])
+
+print(np.array_equal(CS1.S, CS1_S))
 
 
+CS1.create_U ()
+CS1.create_log_k_vector()
+# c_ = ['H+', 'Na+', 'Cl-', 'SOH', 'SOH_Boltzf_psi_0', 'SOH_Boltzf_psi_beta', 'SOH_Boltzf_psi_diffuselayer', 'OH-', 'SOH2+', 'SO-', 'SOH2Cl', 'SONa']
+c_guess = np.array([1.602e-08, 7.412e-24, 2.503e-05, 5.371e-02, 4.872e-01, 4.902e-01 , 6.325e-01, 6.366e-07, 8.143e-03, 8.117e-03, 8.945e-35, 2.500e-05])
+#CS1.set_constant_ionic_strength (7.293e-06)
+CS1.speciation_Westall1980_TLM (tolerance = 1e-6, max_iterations = 100, c_guess = c_guess)
+CS1.print_speciation()
+
+
+
+
+##################################
 
 # Reading input
 infile = 'Type5_Input_SC_TLM.txt'
@@ -185,7 +227,7 @@ print(np.array_equal(CS1.S, CS1_S))
 CS1.create_U ()
 CS1.create_log_k_vector()
 # c_ = [H+, AsO4-3, SurfOH, Boltzman_SurfOH_0, Boltzmann_SurfOH_b, Boltzman_Surf_D, OH-, H3AsO4, HAsO4-2, H2AsO4-, SurfOH2+, SurfO-, SurfH2AsO4, SurfHAsO4-, SurfOHAsO4-3]
-c_guess = np.array([7.178e-10, 5.94e-27, 6.883e-02, 1.952e+2, 6.176e-01, 7.108e-01, 1.459e-05, 9.293e-34,1.225e-24, 7.706e-27, 5.925e-04, 5.789e-04, 2.025e-09, 2.298e-08, 5.638e-17])
+c_guess = np.array([8.727e-09, 1.404e-28, 5.373e-02, 0.8903, 9.008e-01, 9.107e-01, 1.162e-06, 9.293e-34,1.225e-24, 7.706e-27, 5.925e-04, 5.789e-04, 2.025e-09, 2.298e-08, 5.638e-17])
 #CS1.set_constant_ionic_strength (7.293e-06)
 CS1.speciation_Westall1980_TLM (tolerance = 1e-6, max_iterations = 100, c_guess = c_guess)
 CS1.print_speciation()

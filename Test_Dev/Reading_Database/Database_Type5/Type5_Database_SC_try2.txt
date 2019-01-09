@@ -1,0 +1,53 @@
+# The first file is supossed to be a simple database. 
+# Things like, temperature coefficients of a polynomial in order to know the equilibrium constant and other parameters might be not include. 
+
+Primary_Species
+
+# Name		# Charge		# MolarWeight	   	#a (Drawn from Pflotran hanford.dat)  #b					
+H+		1			1.0079			9		
+Cl-		-1			35.453			3
+Na+		1			22.9898			4
+
+
+
+
+# Notes: 
+#       1) No water in this database, since it will be used assuming H + OH = 0
+#       2) The way to calculate the activity of the species will be introduced in the input file, but there is an exception that is water 
+#	    it is calculated by Raoult’s law (Garrels and Christ,1965, p. 65-66). Therefore, the name H2O will be specific for water
+#	3) The charge can be obtain by reading the string '# Name' character by character and if a + or - appears count it as charge (+ or -) 
+#          and the number behind as the value of charge (+2, +3, etc). It can be later implentated.
+# 
+
+Secondary_Species
+# Name	#Charge 	#Reaction ('Primary Species' 'Stoichiometric' ....)
+#OH-         -1 		H2O	-1	H+	1  # This first reaction has been omitted while contains water. Remember that here we assume that water is negligible
+OH-         -1 		H+	1
+-log_k	     -14
+-a	4.5
+-b	0
+# Notes:
+#  1) First the secondary species names, and later the charge (which might be removed by a function which translates the strings into values),
+#     then the primary species that form the reaction with its stoichiometric coefficient. (Where products are positives and reactants are negative, the stoichiometric value of th
+#	secondary species is always 1 <-- This can be modified, I guess I just do it for simplicity) 
+#  2) The line -log_k states the log value of the defined reaction. (Like Phreeqc I suposse that log_K is at 25°C)
+#  3) More lines can be written, behind to add parameters. (e.g. Parameter for temperature and the log_K) <-- must be discussed.
+
+Surface_Primary
+
+SOH
+
+Surface_Secondary
+# Name	#Stochiometric 	#Reaction ('Primary Species' 'Stoichiometric' ....)
+
+SOH2+	1	H+	-1	SOH	-1
+-log_k 7.29
+
+SO-		-1	H+	1	SOH	-1
+-log_k -8.93
+
+SOH2Cl	0	Cl- -1	H+	-1	SOH	-1
+-log_k -21
+
+SONa	-1	H+	1	Na+	-1	SOH	-1
+-log_k 12
