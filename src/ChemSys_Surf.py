@@ -650,7 +650,7 @@ class ChemSys_Surf (Database_SC):
             #print(delta_X)
             # The error will be equal to the maximum increment
             err = max(abs(delta_X))
-            #print(err)
+            print(err)
             # Relaxation factor borrow from Craig M.Bethke to avoid negative values
             max_1 = 1
             max_2 =np.amax(-2*np.multiply(delta_X, 1/c_n[0:pos_end_elec]))
@@ -1644,7 +1644,7 @@ class ChemSys_Surf (Database_SC):
         psid = -np.log(X[-1])*(RT/self.Faraday_constant)
         C = np.cosh((self.Faraday_constant*psid)/(2*RT))
         partA = A*B*C
-        Z[n_ele_plane0+2, n_ele_plane0+1] = partA + partB
+        Z[n_ele_plane0+2, n_ele_plane0+2] = partA + partB
         
         return Z
             
