@@ -650,7 +650,7 @@ class ChemSys_Surf (Database_SC):
             #print(delta_X)
             # The error will be equal to the maximum increment
             err = max(abs(delta_X))
-            print(err)
+            #print(err)
             # Relaxation factor borrow from Craig M.Bethke to avoid negative values
             max_1 = 1
             max_2 =np.amax(-2*np.multiply(delta_X, 1/c_n[0:pos_end_elec]))
@@ -666,15 +666,6 @@ class ChemSys_Surf (Database_SC):
         if counter_iterations >= max_iterations:
             raise ValueError('Max number of iterations surpassed.')
         self.c = c_n
-        return c_n
-        
-    def speciation_Westall1980_TLMb (self, tolerance = 1e-6, max_iterations = 100, c_guess = None):
-        '''
-            My first Westall1980 algortihmm did not work. I try a similar implementation to the work of Westall to see if like that it works.
-            Implementation of the algorithm given in "Chemical Equilibrium Including Adsorption on Charged Surfaces" Westall, 1980
-            ages 37-to-39
-        '''
-        
         return c_n
 
     def speciation_Borkovec_1983_DLM (self, tolerance = 1e-6, max_iterations = 100, c_guess = None, A_Borkovec = None, names_col = None, names_row = None ):      
@@ -790,7 +781,8 @@ class ChemSys_Surf (Database_SC):
             c = K_eqn20 + np.matmul(A,np.log10(X))      # This part here is equation 20
             c = 10**c
             counter_iterations += 1
-            
+        if counter_iterations >= max_iterations:
+            raise ValueError('Max number of iterations surpassed.')    
         self.c_Borkovec = c
         return c
     
@@ -1059,6 +1051,7 @@ class ChemSys_Surf (Database_SC):
                 charge_surface_0 = self.list_sorpt_pri_sp[i].C1*(psi[0]-psi[1])
                 charge_surface_b = self.list_sorpt_pri_sp[i].C1*(psi[1]-psi[0]) + self.list_sorpt_pri_sp[i].C2*(psi[1]-psi[2])
                 charge_surface_d = self.list_sorpt_pri_sp[i].C2*(psi[2]-psi[1])
+                #print(charge_surface_0 +charge_surface_b+charge_surface_d)  Check that the sum of charges equals 0
                 #charge_surface_d = self.list_sorpt_pri_sp[i].C2*(psi[2]-psi[0])
                 D = (self.list_sorpt_pri_sp[i].sp_surf_area*self.list_sorpt_pri_sp[i].solid_concentration_or_grams)/self.Faraday_constant
                 T_0 = charge_surface_0*D
@@ -1071,8 +1064,13 @@ class ChemSys_Surf (Database_SC):
                 B = np.sqrt(8*self.permittivity_free_space*self.dielectric_constant*self.universal_gas_constant*self.temperature*I)
                 E = np.sinh((self.Faraday_constant*psi[2])/(2*(self.universal_gas_constant*self.temperature)))
                 Y = B*E
+                #print(Y-T_d)
+                # print(Y+T_d)   I have an existencial doubt about these part. 
+                #print(charge_surface_d+Y)
                 #
-                T_sigma.append(T_0); T_sigma.append(T_b); T_sigma.append(Y+T_d)
+                T_sigma.append(T_0); T_sigma.append(T_b); 
+                T_sigma.append(Y+T_d)
+                #T_sigma.append( charge_surface_d+T_d)
                 pos_point_electro_unknown += 3
         #print([T_sigma])    
         return np.array(T_sigma)
@@ -1490,9 +1488,166 @@ class ChemSys_Surf (Database_SC):
         
         return f,df
         
-    
-    
+ #####################################################################################################################################################################################
+###################################### Since I think I understand the algorithm but is not working with my implementation, I will re-do it. ##########################################
+ #####################################################################################################################################################################################
+
+    def speciation_Westall1980_TLMb (self, tolerance = 1e-6, max_n_iterations = 100, X_guess = None):
+        '''
+            My first Westall1980 algortihmm did not work. I try a similar implementation to the work of Westall to see if like that it works.
+            Implementation of the algorithm given in "Chemical Equilibrium Including Adsorption on Charged Surfaces" Westall, 1980
+            ages 37-to-39
+        '''
+        S1, S2 = self.separte_S_into_S1_and_S2()
+        S_prima = -np.matmul(np.linalg.inv(S2),S1)
+        ## Since I am copy the algortihm presented. I must started defining the same variables that they use.
+        A = self.TMLb_obtain_matrix_A()
+        log_kp = np.matmul(np.linalg.inv(S2), self.log_k_vector) 
+        LOG_K =  np.concatenate((np.zeros(self.length_aq_pri_sp+self.length_sorpt_pri_sp), log_kp))
         
+                                                       # The vector contains first 0, related to primary species and then the constants of sec aq reactions and sec sorption reactions
+        
+        if np.any(X_guess == None):
+            X = np.concatenate ((self.aq_u_vector, sorpt_u_vector))
+            X = np.concatenate((X, np.ones(self.length_names_elec_sorpt)))         # X is the primary species vector, suposse to be order aq.prim, sorpt.prim, elect.species
+        else:
+            X = X_guess
+        # mass-law  action
+        log_C = LOG_K + np.matmul(A,np.log10(X))   # C must contain aq.prim, sorpt.prim, aq.sec, sorpt.sec
+        C = 10**log_C
+        
+        sorpt_u_vector = self.create_sorpt_vec()
+        T_chem = np.concatenate ((self.aq_u_vector, sorpt_u_vector))
+        
+        # parm loop
+        err = 1 
+        counter_iterations = 0;
+        while err>tolerance and counter_iterations < max_n_iterations:
+            # The T elec should be added
+            Tele = self.TMLb_Telec(X[self.length_aq_pri_sp+self.length_sorpt_pri_sp:self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_names_elec_sorpt])
+            T = np.concatenate([T_chem, Tele])
+            # Mass-Balance Equation
+            Y = np.matmul(A.transpose(),C) - T
+            y_end = self.TMLb_diffuseregionvalue(C, X[-1])
+            Y[-1] = Y[-1] - y_end
+            # I have Y. Now I need Z
+            Z = self.TMLb_Jacobian(A, C, X)
+            
+            # solving
+            delta_X = np.linalg.solve(Z,-Y)
+            # The error will be equal to the maximum increment
+            err = max(abs(delta_X))
+            print(err)
+            # Relaxation factor borrow from Craig M.Bethke to avoid negative values
+            max_1 = 1
+            max_2 =np.amax(-2*np.multiply(delta_X, 1/X))
+            Max_f = np.amax([max_1, max_2])
+            Del_mul = 1/Max_f
+            # Update
+            X = X + Del_mul*delta_X   # Update primary species
+            log_C = LOG_K + np.matmul(A,np.log10(X))   # C must contain aq.prim, sorpt.prim, aq.sec, sorpt.sec
+            C = 10**log_C
+            counter_iterations += 1                        
+        if counter_iterations >= max_n_iterations:
+            raise ValueError('Max number of iterations surpassed.')
+        self.X = X
+        self.C = C
+        return C
+    
+    def TMLb_obtain_matrix_A(self):
+        '''
+            From the U developed by the code. An "A" matrix similar to the one exposed by the formulation of Westall is created
+        '''
+        A = self.U
+        #                           Species
+        #   U = Sum of components[          ]   
+        #
+        A = np.delete(A, np.s_[self.length_aq_pri_sp+self.length_sorpt_pri_sp : self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_names_elec_sorpt], axis=1)
+        
+        #
+        # Now, I return the transpose matrix of A. Such transpose matrix is composed in the columns by the sum of the components: in principle in the following order aq.prim, sorpt.prim, boltz.factor
+        # and the rows are the species, the boltz factor species are not included in the rows. In princile in the following order: aq.prim, sorpt.prim, aq.sec, sorpt.sec
+        #
+        return A.transpose()
+    
+    def TMLb_Telec(self,X):
+        '''
+            If the algorithm work, probably this part will be modified. So far, I am assuming here only one surface.
+        '''
+        psi = -np.log(X)*((self.temperature*self.universal_gas_constant)/self.Faraday_constant)
+        sa_F = (self.list_sorpt_pri_sp[0].sp_surf_area*self.list_sorpt_pri_sp[0].solid_concentration_or_grams)/self.Faraday_constant
+        
+        T_sigma0 = sa_F*self.list_sorpt_pri_sp[0].C1*(psi[0]-psi[1])
+        T_sigmabeta = sa_F*self.list_sorpt_pri_sp[0].C1*(psi[1]-psi[0])+sa_F*self.list_sorpt_pri_sp[0].C2*(psi[1]-psi[2])
+        T_sigmad = sa_F*self.list_sorpt_pri_sp[0].C2*(psi[2]-psi[1])
+        
+        return [T_sigma0, T_sigmabeta, T_sigmad]
+    
+    def TMLb_diffuseregionvalue(self, C, Xd):
+        '''
+        '''
+        # C contains 
+        c_aq = np.concatenate((C[:self.length_aq_pri_sp],C[self.length_aq_pri_sp+self.length_sorpt_pri_sp:self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_aq_sec_sp]))
+        ionic_strength = self.calculate_ionic_strength (c_aq)
+        partA = np.sqrt(8*self.dielectric_constant*self.permittivity_free_space*self.universal_gas_constant*self.temperature*ionic_strength)
+        psid = -np.log(Xd)*((self.temperature*self.universal_gas_constant)/self.Faraday_constant)
+        partB = np.sinh((self.Faraday_constant*psid)/(2*self.universal_gas_constant*self.temperature))
+        
+        return partA*partB
+    
+    def TMLb_Jacobian(self, A, C, X):
+        '''
+         The jacobian must be calculated
+        '''
+        Nx = len(X)
+        Ns = len(C)
+        Z = np.zeros([Nx, Nx])
+        # There is a step that takes place for all the entries in the matrix
+        # There is a term that is repeated in all part of the matrix, also when k = d
+        #
+        # Sum(aij*aik* ci/Xk)
+        # Such term will be the first to be calculated.
+        for j in range(0, Nx):
+            for k in range(0, Nx):
+                for i in range(0, Ns):
+                    Z[j, k] = Z[j, k] + A[i,j]*A[i,k]*(C[i]/X[k])
+        
+        # Now specific points are treated
+        n_ele_plane0 = self.length_aq_pri_sp+self.length_sorpt_pri_sp
+        sa_F = (self.list_sorpt_pri_sp[0].sp_surf_area*self.list_sorpt_pri_sp[0].solid_concentration_or_grams)/self.Faraday_constant
+        C1 = self.list_sorpt_pri_sp[0].C1
+        C2 = self.list_sorpt_pri_sp[0].C2
+        
+        RT = self.universal_gas_constant*self.temperature
+        ## plane 00
+        Z[n_ele_plane0, n_ele_plane0] = Z[n_ele_plane0, n_ele_plane0] + C1*sa_F*(RT/(self.Faraday_constant*X[n_ele_plane0]))
+        ## plane 0b
+        Z[n_ele_plane0, n_ele_plane0+1] = Z[n_ele_plane0, n_ele_plane0+1] - C1*sa_F*(RT/(self.Faraday_constant*X[n_ele_plane0+1]))
+        ## plane 0d
+        Z[n_ele_plane0, n_ele_plane0+2] = 0
+        ## plane b0
+        Z[n_ele_plane0+1, n_ele_plane0] = Z[n_ele_plane0+1, n_ele_plane0] - C1*sa_F*(RT/(self.Faraday_constant*X[n_ele_plane0]))
+        ## plane bb
+        Z[n_ele_plane0+1, n_ele_plane0+1] = Z[n_ele_plane0+1, n_ele_plane0+1] + (C1+C2)*sa_F*(RT/(self.Faraday_constant*X[n_ele_plane0+1]))
+        ## plane bd
+        Z[n_ele_plane0+1, n_ele_plane0+2] = Z[n_ele_plane0+1, n_ele_plane0+2] - C2*sa_F*(RT/(self.Faraday_constant*X[n_ele_plane0+2]))
+        ## plane d0
+        Z[n_ele_plane0+2, n_ele_plane0] = 0
+        ## plane db
+        Z[n_ele_plane0+2, n_ele_plane0+1] = Z[n_ele_plane0+2, n_ele_plane0+1] - C2*sa_F*(RT/(self.Faraday_constant*X[n_ele_plane0+1]))
+        ## plane dd
+        partB =  C2*sa_F*(RT/(self.Faraday_constant*X[n_ele_plane0+2]))
+        A = -self.Faraday_constant/(2*RT)
+        c_aq = np.concatenate((C[:self.length_aq_pri_sp],C[self.length_aq_pri_sp+self.length_sorpt_pri_sp:self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_aq_sec_sp]))
+        ionic_strength = self.calculate_ionic_strength (c_aq)
+        B = np.sqrt(8*self.dielectric_constant*self.permittivity_free_space*self.universal_gas_constant*self.temperature*ionic_strength) 
+        psid = -np.log(X[-1])*(RT/self.Faraday_constant)
+        C = np.cosh((self.Faraday_constant*psid)/(2*RT))
+        partA = A*B*C
+        Z[n_ele_plane0+2, n_ele_plane0+1] = partA + partB
+        
+        return Z
+            
 ##################################################
 ###############################
 ########################### Postprocessing
