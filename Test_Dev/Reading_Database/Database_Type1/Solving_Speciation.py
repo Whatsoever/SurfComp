@@ -14,13 +14,15 @@ from Read_input_file_type1 import *
 # Read database
 database = 'Type1_Database.txt'
 # Instantiating database
-Species_list, Reaction_list, primary_species_list, secondary_species_list = creating_databaseObject_from_text_type1 (database)
+names_aqueous_primary_species, names_aqueous_secondary_species, Aq_Species_list_pri, Aq_Species_list_sec, Aq_Reaction_list = creating_databaseObject_from_text_type1 (database)
 
 D = Database()
-D.set_species_list(Species_list)
-D.set_reaction_list(Reaction_list)
-D.set_primary_species(primary_species_list)
-D.set_secondary_species(secondary_species_list)
+D.set_names_aq_primary_species(names_aqueous_primary_species)
+D.set_aq_list_pri_class(Aq_Species_list_pri)
+D.set_names_aq_secondary_species (names_aqueous_secondary_species)
+D.set_aq_list_sec_class( Aq_Species_list_sec)
+D.set_aq_reactions_list(Aq_Reaction_list)
+
 
 # Check S
 D.create_log_k_vector()

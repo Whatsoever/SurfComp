@@ -21,23 +21,22 @@ class ChemSys (Database):
         '''
         DatabaseC.check_consistency_species()       # This method is run to assure that what is written below this line has sense.
         # Getting index of list_prim in the database
-        indices_ps = self.index_InputPrimaryspeciesinDatabase ( list_prim, DatabaseC.name_primary_species)
+        indices_ps = self.index_InputPrimaryspeciesinDatabase ( list_prim, DatabaseC.names_aq_pri_sp)
         # Sorting list_prim and list_val according to the indices, AFTER THIS STEP THE LIST BECOMES TUPLE !!!!!!!!!!!
         indices_ps, list_prim, list_val = zip(*sorted(zip(indices_ps, list_prim, list_val)))
         
         self.u_comp_vec = np.array(list_val)
         # name_prymary_species is like list_prim but order following the order of the Database
-        self.name_primary_species = list(list_prim)                        
+        self.set_names_aq_primary_species(list(list_prim))                       
         # It is the list of species = [Species1, Species2, Species3] related to name_primary_species
-        self.list_species = [DatabaseC.list_species[i] for i in indices_ps]
+        self.list_aq_pri_sp = [DatabaseC.list_aq_pri_sp[i] for i in indices_ps]
         # Check which Reactions in the database occur in the ChemSys --> from there the secondary species will be obtained.
-        indices_r_inDatabase, self.name_secondary_species = self.index_reactionsinDatabase ( DatabaseC.list_reactions, DatabaseC.n_reactions)
+        indices_r_inDatabase, names_aq_sec_sp = self.index_reactionsinDatabase ( DatabaseC.list_aq_reactions)
+        self.set_names_aq_secondary_species(names_aq_sec_sp)
         # Add secondary species in the list of species
         self.add_secondary_species (DatabaseC)
         # Get the list of reactions from the Database
-        self.list_reactions = [DatabaseC.list_reactions[i] for i in indices_r_inDatabase]
-        self.n_reactions = len(self.list_reactions)
-        self.n_species = len(self.list_species)
+        self.list_aq_reactions = [DatabaseC.list_aq_reactions[i] for i in indices_r_inDatabase]
         # For calculations --> This functions are linked to the parents
         self.create_S()
         self.create_log_k_vector()
@@ -49,6 +48,7 @@ class ChemSys (Database):
         self.calculate_waterdensity()
         self.calculate_A_activitypar()
         self.calculate_B_activitypar()
+        self.ionic_strength_constant = False
     # Setters
     def set_T(self, Temp_K):
         '''
@@ -68,7 +68,16 @@ class ChemSys (Database):
     
     def set_mass_water(self, kgw):
         self.mass_water = kgw
-    
+        
+        
+    def set_constant_ionic_strength (self, givenvalue):
+        '''
+            set the ionic_strength to a given value
+        '''
+        self.ionic_strength_constant = True
+        self.fix_ionic_strength = givenvalue
+        
+        
     def index_InputPrimaryspeciesinDatabase (self, list1, list2):
         '''
             The function returns a list of indices of the position of list1 in list2. --> E.g. list1 =[a c], list2 = [a b c d] function returns listindices = [1,3]
@@ -83,21 +92,21 @@ class ChemSys (Database):
         return list_indices
     
     # Returns the index of the reactions that can occur according to the database
-    def index_reactionsinDatabase (self, l_dic_react, len_l_dic_react):
+    def index_reactionsinDatabase (self, l_dic_react):
         '''
             The function returns two list. One with the indices of the reactions that occur in the ChemSys according to the inputed Database, and the other the secondary species in each reaction. 
             Both, list are in agremment. e.g. l_ind_reaction = [0, 4, 6, 9], l_secondary_species = ['A' 'B' 'C' 'F']  From reaction 0 of the database the secondary species obtained is A, from 6 is C, and so on.
         '''
         list_indices_r=[]
         list_secondary_species_r=[]
-        for i in range(0, len_l_dic_react):
+        for i in range(0, len(l_dic_react)):
             temp_d_r = l_dic_react[i].reaction
             list_temp_d_r = list(temp_d_r.keys())
             n_s = 0
             for d in list_temp_d_r:
-                c = self.name_primary_species.count(d)
+                c = self.names_aq_pri_sp.count(d)
                 if c != 1 and c!= 0:
-                    raise ValueError('[ChemSys class, method Index_ReactionsinDatabase] It seems that the name_primary_species property is wrong.')
+                    raise ValueError('[ChemSys class, method Index_ReactionsinDatabase] It seems that the names_aq_pri_sp property is wrong.')
                 #elif c == 0 and not (i in list_indices_r):
                  #   list_indices_r.append(i)
                  #   list_secondary_species_r.append(d)
@@ -114,10 +123,11 @@ class ChemSys (Database):
         '''
             Adds the secondary species in the list of species
         '''
-        l = DatabaseC.name_primary_species + DatabaseC.name_secondary_species
-        for i in self.name_secondary_species:
+        self.list_aq_sec_sp = []
+        l = DatabaseC.names_aq_sec_sp
+        for i in self.names_aq_sec_sp:
             pos = l.index(i)
-            self.list_species.append(DatabaseC.list_species[pos])
+            self.list_aq_sec_sp.append(DatabaseC.list_aq_sec_sp[pos])
             
   
     ###################### Calculations #######################################
@@ -193,32 +203,55 @@ class ChemSys (Database):
                 S =  R2 ||  x21  x22  x23 ||        in to  S1 = || x21 x22 ||   and S2= || x21 ||
                      R3 ||  x31  x32  x33 ||                    || x31 x32 ||           || x32 ||
         ''' 
-        S1 = self.S[:, 0:len(self.name_primary_species)].copy() 
-        S2 = self.S[:, len(self.name_primary_species):].copy()
+        S1 = self.S[:, 0:len(self.names_aq_pri_sp)].copy() 
+        S2 = self.S[:, len(self.names_aq_pri_sp):].copy()
         return S1, S2
     
     # Component matrix functions
-    def calculate_ionic_strength (self, c):
+    def calculate_ionic_strength (self,c):
         '''
-            Calculate the ion strength 
+            Calculate the ion strength: The vector C is supossed to be a vector of concentrations that contains first the aqueous primary species followed by the aqueous secondary species. 
+            Both primary and secondary species are supossed to be order in the same order that the one of the class, namely self.
         '''
+        if self.ionic_strength_constant:
+            return self.fix_ionic_strength
         Ionic_s=0
-        for i in range(0, self.n_species):
-           # if type(self.list_species[i]) == Aq_Species:
-           z = self.list_species[i].charge
-           Ionic_s = Ionic_s + c[i]*z*z
+        count = 0
+        for i in range(0, self.length_aq_pri_sp): 
+            # if type(self.list_aq_pri_sp[i]) == Aq_Species:
+            z = self.list_aq_pri_sp[i].charge
+            Ionic_s = Ionic_s + c[count]*z*z
+            count += 1
+        for i in range(0, self.length_aq_sec_sp):
+        # if type(self.list_aq_sec_sp[i]) == Aq_Species:
+            z = self.list_aq_sec_sp[i].charge
+            Ionic_s = Ionic_s + c[count]*z*z
+            count += 1
+         
         Ionic_s = 0.5*Ionic_s
         return Ionic_s
         
     def calculate_log_activity_coefficient(self, ionic_strength, ctemp):
-        log_coef_a=np.zeros(self.n_species)
-        for i in range(0, self.n_species):
-            if self.list_species[i].name == 'H2O':
-                #log_coefficient_activity(self, ionic_strength, c=0, A=0, B = 0, a = 0, b = 0, z = 0)
+        self.length_aq_pri_sp
+        log_coef_a= np.zeros(self.length_aq_pri_sp+ self.length_aq_sec_sp)
+        counter = 0
+        for i in range(0, self.length_aq_pri_sp):
+            if self.list_aq_pri_sp[i].name == 'H2O':
                 cs=np.delete(ctemp,i)
-                log_coef_a[i] = self.list_species[i].log_coefficient_activity( ionic_strength, c = cs)
+                log_coef_a[counter] = self.list_aq_pri_sp[i].log_coefficient_activity( ionic_strength, c = cs)
+                counter += 1
             else:
-                log_coef_a[i] = self.list_species[i].log_coefficient_activity(ionic_strength, A=self.A_activitypar, B = self.B_activitypar )
+                log_coef_a[counter] = self.list_aq_pri_sp[i].log_coefficient_activity(ionic_strength, A=self.A_activitypar, B = self.B_activitypar )
+                counter += 1
+        for i in range(0, self.length_aq_sec_sp):
+            if self.list_aq_sec_sp[i].name == 'H2O':
+                cs=np.delete(ctemp,i)
+                log_coef_a[counter] = self.list_aq_sec_sp[i].log_coefficient_activity( ionic_strength, c = cs)
+                counter += 1
+            else:
+                log_coef_a[counter] = self.list_aq_sec_sp[i].log_coefficient_activity(ionic_strength, A=self.A_activitypar, B = self.B_activitypar )
+                counter += 1
+
         return log_coef_a
     # In This function the component matrix U is calculated as steated by Steefel and MacQuarrie, 1996 or as it is the same stated by Saaltink et al., 1998  (equation 24) 
     # It is supposed to be obtained by means of a Gauss-Jordan elimination
@@ -229,16 +262,15 @@ class ChemSys (Database):
         '''
         S1, S2 = self.separte_S_into_S1_and_S2()
         # Create Identity
-        ne = self.n_species - self.n_reactions
-        I = np.identity (ne)
+        I = np.identity (self.length_aq_pri_sp)
         # Use  Saaltink et al., 1998  (equation 24) 
         St = np.matmul(-S1.transpose(), np.linalg.inv(S2.transpose()))  # -S1t*inv(S2t)
         self.U = np.concatenate((I, St), 1)
         self.check_U_consistancy()
         # If there is charge the column of U must be zero
         self.charge_columns_0()
-        self.U1 = self.U[:, :ne].copy()
-        self.U2 = self.U[:, ne:].copy()
+        self.U1 = self.U[:, :self.length_aq_pri_sp].copy()
+        self.U2 = self.U[:, self.length_aq_pri_sp:].copy()
     
     def check_U_consistancy(self):
         '''
@@ -251,9 +283,13 @@ class ChemSys (Database):
     
     def charge_columns_0(self):
         New_U = self.U.copy()
-        for i in range(0, self.n_species):
-            if hasattr(self.list_species[i], 'charge_element'):
-                if self.list_species[i].charge_element == True:
+        for i in range(0, self.length_aq_pri_sp):
+            if hasattr(self.list_aq_pri_sp[i], 'charge_element'):
+                if self.list_aq_pri_sp[i].charge_element == True:
+                    New_U[i, i] = 0;
+        for i in range(0, self.length_aq_sec_sp):
+            if hasattr(self.list_aq_sec_sp[i], 'charge_element'):
+                if self.list_aq_sec_sp[i].charge_element == True:
                     New_U[i, i] = 0;
         self.U = New_U
     
@@ -264,7 +300,7 @@ class ChemSys (Database):
         log_activity_c1 = np.log10(c1_n) + log_actcoeff_1
         # It must be taken into account that water is an exception, the log_activity_coefficient variable contains the activity coefficient of all the concentrations, except for water, where it contains the activity
         # Therefore, water value of log_activity_c1 [water] = log_actcoeff_1 [water]
-        i_water = self.name_primary_species.index('H2O')
+        i_water = self.names_aq_pri_sp.index('H2O')
         log_activity_c1[i_water] = log_actcoeff_1 [i_water]
         
         
@@ -274,7 +310,7 @@ class ChemSys (Database):
     # Calculations
     # Speciation calculations
     def caculate_speciation(self, algorithm_num):
-        if algorithm == 1:
+        if algorithm_num == 1:
             self.speciation_algorithm1()
         else:
             raise ValueError('Not algorithm for speciation with this number.')
@@ -284,7 +320,7 @@ class ChemSys (Database):
         #tolerance = 1e-4
         # Initial guess c1 (c2 must also be inizialitated)
         c = self.instantiation_step(type_I )
-        nps = len(self.name_primary_species)
+        nps = len(self.names_aq_pri_sp)
         c1_n = c[:nps].copy()
         c2_n0 = c[nps:].copy()
         delta_c1 = np.zeros(nps);
@@ -359,7 +395,7 @@ class ChemSys (Database):
         '''
         #index_W = log_activity_coefficient.index('H2O')
         #log_activity_coefficient = 1
-        n_primary_species = len(self.name_primary_species)
+        n_primary_species = len(self.names_aq_pri_sp)
         log_actcoeff_1 = log_activity_coefficient[0:n_primary_species].copy()
         log_actcoeff_2 = log_activity_coefficient[n_primary_species:].copy()
         # A = 1/c_2  I
@@ -380,7 +416,7 @@ class ChemSys (Database):
         inv_gamma2 = 1/np.power(10, log_actcoeff_2)
         C_0 = np.diag(inv_gamma2)
         C_1 = self.J_act_coef_respect_ionicstrength (log_activity_coefficient, ionic_strength, 2)
-        C_2 = self.vect_dionicstrength_dspecies(len(self.name_secondary_species), 2)
+        C_2 = self.vect_dionicstrength_dspecies(self.length_aq_sec_sp, 2)
         C = np.matmul(C_0, np.matmul(C_1, C_2))
         
         return A - B + C
@@ -389,7 +425,7 @@ class ChemSys (Database):
         '''
             Calculates the right hand side of the equation stated in Calculate_Dc2_dc1 method, namely --> S_1^*  1/c_1  I+(S_1^*)/γ_1   (∂γ_1)/∂μ  ∂μ/(∂c_1 )-I/γ_2   (∂γ_2)/∂μ  ∂μ/(∂c_1 )
         '''
-        n_primary_species = len(self.name_primary_species)
+        n_primary_species = len(self.names_aq_pri_sp)
         log_actcoeff_1 = log_activity_coefficient[0:n_primary_species].copy()
         log_actcoeff_2 = log_activity_coefficient[n_primary_species:].copy()
         # S_1^*  1/c_1  I
@@ -411,7 +447,7 @@ class ChemSys (Database):
         inv_gamma2 = 1/np.power(10, log_actcoeff_2)
         C_0 = np.diag(inv_gamma2)
         C_1 = self.J_act_coef_respect_ionicstrength (log_activity_coefficient, ionic_strength, 2)
-        C_2 = self.vect_dionicstrength_dspecies(len(self.name_secondary_species), 1)
+        C_2 = self.vect_dionicstrength_dspecies(self.length_aq_sec_sp, 1)
         C = np.matmul(C_0, np.matmul(C_1, C_2))
         
         return A+B-C
@@ -427,21 +463,23 @@ class ChemSys (Database):
         '''
         v_di_dc2=[]
         if t == 0:
-            d = range(0, self.n_species)
+            d = range(0, self.length_aq_pri_sp + self.length_aq_sec_sp)
         elif t == 1:
-            d = range(0, len(self.name_primary_species))
+            d = range(0, self.length_aq_pri_sp)
         elif t == 2:
-            d = range(len(self.name_primary_species), self.n_species)
+            d = range(self.length_aq_pri_sp, self.length_aq_pri_sp + self.length_aq_sec_sp)
         else:
             raise ValueError('Wrong t.')
             
+        L = self.list_aq_pri_sp + self.list_aq_sec_sp  
+        
         for i in d:
-            r = 0.5*self.list_species[i].charge**2
+            r = 0.5*L[i].charge**2
             v_di_dc2.append(r)
         return np.tile(v_di_dc2, (n_r,1))
         
     def J_act_coef_respect_ionicstrength(self, log_actcoeff, ionic_strength, t):
-        # Assuming that self.list_species is order like self.name_primary_Species
+        # Assuming that self.list_species is order like self.names_aq_pri_sp
         '''
             t is 0 for all species
             t is 1 for primary species
@@ -449,32 +487,33 @@ class ChemSys (Database):
         '''
         v = []
         if t == 0:
-            d = range(0, self.n_species)
+            d = range(0, self.length_aq_pri_sp + self.length_aq_sec_sp)
         elif t == 1:
-            d = range(0, len(self.name_primary_species))
+            d = range(0, self.length_aq_pri_sp)
         elif t == 2:
-            d = range(len(self.name_primary_species), self.n_species)
+            d = range(self.length_aq_pri_sp, self.length_aq_pri_sp + self.length_aq_sec_sp)
         else:
             raise ValueError('Wrong t.')
+        L = self.list_aq_pri_sp + self.list_aq_sec_sp
         
         for i in d:
-            if self.list_species[i].name == 'H2O':
+            if L[i].name == 'H2O':
                 v.append(0)
             else:
-                v.append(self.list_species[i].dgamma_dionicstrength(np.power(10, log_actcoeff[i]), ionic_strength, A=self.A_activitypar))
+                v.append(L[i].dgamma_dionicstrength(np.power(10, log_actcoeff[i]), ionic_strength, A=self.A_activitypar))
         v = np.diag(v)
         return v        
 
     
     def instantiation_step (self, type_I=1):
             if type_I == 0:
-                c_ini = np.ones(self.n_species)*1e-3
+                c_ini = np.ones(self.length_aq_pri_sp + self.length_aq_sec_sp)*1e-3
                 #c_ini = np.array([55.50667,  1.227e-10, 1.227e-04, 3.388e-05, 8.415e-05, 8.312e-05, 5.565e-06, 1.134e-07, 2.248e-08, 1.475e-07])# for example 1
                 c_ini = c_ini.transpose()
             elif type_I == 1:
                 c_ini = self.speciation_noactivitycoefficient()
             else:
-                raise ValueError('Not algorithm for instantiationwith these number.')
+                raise ValueError('Not algorithm for instantiation with these number.')
             return c_ini
            
     def speciation_noactivitycoefficient(self, tolerance = 1e-6, max_n_iterations = 100):
@@ -517,7 +556,6 @@ class ChemSys (Database):
         '''
         c_guess = self.instantiation_step( type_I=0)
         c_n = c_guess
-        nps = len(self.name_primary_species)
         S1, S2 = self.separte_S_into_S1_and_S2()
         
         counter_iterations = 0
@@ -527,7 +565,7 @@ class ChemSys (Database):
             # Calculate f or better said in this specific case Y
             Y = self.U.dot(c_n) - self.u_comp_vec
             # Calculate Z
-            Z = self.Jacobian_Speciation_Westall1980(c_n, nps)
+            Z = self.Jacobian_Speciation_Westall1980(c_n, self.length_aq_pri_sp)
             # Calculating the diff, Delta_X
             # In the paper Delta_X is X_old - X_new or as they called X_original - X_improved.
             # I am writing X_new- X-old, hence I use -Y instead of Y.
@@ -538,15 +576,15 @@ class ChemSys (Database):
             
             # Relaxation factor borrow from Craig M.Bethke to avoid negative values
             max_1 = 1
-            max_2 =np.amax(-2*np.multiply(delta_X, 1/c_n[0:nps]))
+            max_2 =np.amax(-2*np.multiply(delta_X, 1/c_n[0:self.length_aq_pri_sp]))
             Max_f = np.amax([max_1, max_2])
             Del_mul = 1/Max_f
             
             
             # Update
-            c_n[0:nps] = c_n[0:nps] + Del_mul*delta_X   # Update primary species
-            log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_n[0:nps])))      # Update secondary
-            c_n[nps:] =10**log_c2
+            c_n[0:self.length_aq_pri_sp] = c_n[0:self.length_aq_pri_sp] + Del_mul*delta_X   # Update primary species
+            log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_n[0:self.length_aq_pri_sp])))      # Update secondary
+            c_n[self.length_aq_pri_sp:] =10**log_c2
         if counter_iterations >= max_iterations:
             raise ValueError('Max number of iterations surpassed.')
         self.c = c_n
@@ -572,7 +610,7 @@ class ChemSys (Database):
         '''
         # Check that water is on the database as primary species and has the first possition
         # So far, for simplicity I leave the thing with the H2O like that but it can be changed.
-        ind = self.name_primary_species.index('H2O')
+        ind = self.names_aq_pri_sp.index('H2O')
         if not (ind == 0):
             raise ValueError('[ChemSys/speciation_algorithm2_reduced_problem] -->To use this algortihm water must be on the first position of the primary species. \n')
         
@@ -587,11 +625,11 @@ class ChemSys (Database):
         WV= np.multiply(self.U2[ind,:], self.U2[1:,:])
         
         # identity size m1
-        I = np.identity(self.n_species-self.n_reactions-1)
+        I = np.identity(self.length_aq_pri_sp-1)
         
         # Updates before loop
         
-        nps = len(self.name_primary_species)
+        nps = self.length_aq_pri_sp
         delta_c = np.zeros(nps);
         counter_iterations = 0;
         S1, S2 = self.separte_S_into_S1_and_S2()
@@ -601,8 +639,7 @@ class ChemSys (Database):
         
         nw_guess = 1                # So we are supossing that the initial amount of water is 1, actually it must change
         m1_guess = (0.9*self.u_comp_vec[1:])*nw_guess
-        
-        ct = np.concatenate((np.concatenate(([55.5087], m1_guess)), np.zeros(self.n_reactions)))
+        ct = np.concatenate((np.concatenate(([55.5087], m1_guess)), np.zeros(len(self.list_aq_reactions))))
         ionic_strength = 0  #ionic_strength = self.calculate_ionic_strength (ctemp)
         log_activity_coefficient = self.calculate_log_activity_coefficient (ionic_strength, ct)
          
@@ -681,8 +718,16 @@ class ChemSys (Database):
         #ionic_strength = self.calculate_ionic_strength (self.c)
         #log_activity_coefficient = self.calculate_log_activity_coefficient (ionic_strength, self.c)
         #v_activity = self.c*(10**log_activity_coefficient)
-        for i in range(0, self.n_species):
-            print(self.list_species[i].name + ' : ' + str(self.c[i]) + '\n')
+        counter = 0
+        for i in range(0, self.length_aq_pri_sp):
+            print(self.list_aq_pri_sp[i].name + ' : ' + str(self.c[counter]) + '\n')
+            counter += 1
+        for i in range(0, self.length_aq_sec_sp):
+            print(self.list_aq_sec_sp[i].name + ' : ' + str(self.c[counter]) + '\n')
+            counter += 1
+        
+        #for i in range(0, self.n_species):
+         #   print(self.list_species[i].name + ' : ' + str(self.c[i]) + '\n')
          #   print(self.list_species[i].name + ' : ' + str(v_activity[i]) + '\n')
          
     def print_ionic_strength(self):
@@ -692,5 +737,12 @@ class ChemSys (Database):
         ionic_strength = self.calculate_ionic_strength (self.c)
         log_activity_coefficient = self.calculate_log_activity_coefficient (ionic_strength, self.c)
         v_activity = self.c*(10**log_activity_coefficient)
-        for i in range(0, self.n_species):
-            print(self.list_species[i].name + ' : ' + str(v_activity[i]) + '\n')
+        
+        counter = 0
+        for i in range(0, self.length_aq_pri_sp):
+            print(self.list_aq_pri_sp[i].name + ' : ' + str(v_activity[counter]) + '\n')
+            counter += 1
+            
+        for i in range(0, self.length_aq_sec_sp):
+            print(self.list_aq_sec_sp[i].name + ' : ' + str(v_activity[counter]) + '\n')
+            counter += 1

@@ -1645,7 +1645,7 @@ class ChemSys_Surf (Database_SC):
         C = np.cosh((self.Faraday_constant*psid)/(2*RT))
         partA = A*B*C
         Z[n_ele_plane0+2, n_ele_plane0+2] = partA + partB
-        
+       
         return Z
             
 ##################################################

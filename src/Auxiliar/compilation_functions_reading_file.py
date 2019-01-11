@@ -41,7 +41,10 @@ def find_Indices_Sorption_SecondaryBlock(list_text):
 def find_last_index(list_text, min_point, possible_ends_list):
     ind_last = len(list_text)
     for i in possible_ends_list:
-        temp_index = list_text.index(i)
+        try:
+            temp_index = list_text.index(i)
+        except ValueError:
+            pass
         if temp_index > min_point and temp_index < ind_last:
             ind_last = temp_index
     return ind_last

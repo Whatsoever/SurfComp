@@ -60,13 +60,13 @@ class Database_SC (Parent):
         pass
 
     # Set main properties
-    def set_names_aq_primary_species (self, names_aq_pri_sp):
-        self.names_aq_pri_sp = names_aq_pri_sp
-        self.length_aq_pri_sp = len(names_aq_pri_sp)
+   # def set_names_aq_primary_species (self, names_aq_pri_sp):  ----> It has been created in Database, It can be removed I thing
+    #    self.names_aq_pri_sp = names_aq_pri_sp
+     #   self.length_aq_pri_sp = len(names_aq_pri_sp)
     
-    def set_names_aq_secondary_species (self, names_aq_sec_sp):
-        self.names_aq_sec_sp = names_aq_sec_sp
-        self.length_aq_sec_sp = len(names_aq_sec_sp)
+   # def set_names_aq_secondary_species (self, names_aq_sec_sp):  ----> It has been created in Database, It can be removed I thing
+    #    self.names_aq_sec_sp = names_aq_sec_sp
+     #   self.length_aq_sec_sp = len(names_aq_sec_sp)
     
     def set_names_sorpt_primary_species (self, names_sorpt_pri_sp):
         self.names_sorpt_pri_sp = names_sorpt_pri_sp
@@ -76,11 +76,11 @@ class Database_SC (Parent):
         self.names_sorpt_sec_sp = names_sorpt_sec_sp
         self.length_sorpt_sec_sp = len(names_sorpt_sec_sp)
     
-    def set_aq_list_pri_class (self, list_aq_pri_sp):
-        self.list_aq_pri_sp = list_aq_pri_sp
+ #   def set_aq_list_pri_class (self, list_aq_pri_sp):  ----> It has been created in Database, It can be removed I thing
+  #      self.list_aq_pri_sp = list_aq_pri_sp
         
-    def set_aq_list_sec_class (self, list_aq_sec_sp):
-        self.list_aq_sec_sp = list_aq_sec_sp
+   # def set_aq_list_sec_class (self, list_aq_sec_sp):   ----> It has been created in Database, It can be removed I thing
+    #    self.list_aq_sec_sp = list_aq_sec_sp
         
     def set_sorpt_list_pri_class (self, list_sorpt_pri_sp):
         self.list_sorpt_pri_sp = list_sorpt_pri_sp
@@ -89,8 +89,8 @@ class Database_SC (Parent):
     def set_sorpt_list_sec_class (self, list_sorpt_sec_sp):
         self.list_sorpt_sec_sp = list_sorpt_sec_sp
     
-    def set_aq_reactions_list (self, list_aq_reactions):
-        self.list_aq_reactions = list_aq_reactions
+    #def set_aq_reactions_list (self, list_aq_reactions):  ----> It has been created in Database, It can be removed I thing
+     #   self.list_aq_reactions = list_aq_reactions
        
     def set_sorpt_reactions_list (self, list_sorpt_reactions):
         self.list_sorpt_reactions = list_sorpt_reactions
@@ -187,13 +187,13 @@ class Database_SC (Parent):
         for i in range(0, len(self.list_sorpt_reactions)):
             self.log_k_vector.append(self.list_sorpt_reactions[i].log_k) 
     
-    def create_charge_vector (self):
-        '''Creates a list of the charge values'''
-        self.charge_vector = []
-        for i in range(0, len(self.list_aq_pri_sp)):
-            self.charge_vector.append(self.list_aq_pri_sp[i].charge)
-        for i in range(0, len(self.list_aq_sec_sp)):
-            self.charge_vector.append(self.list_aq_sec_sp[i].charge)
+    #def create_charge_vector (self):    ----> It has been created in Database, It can be removed I thing
+     #   '''Creates a list of the charge values'''
+      #  self.charge_vector = []
+       # for i in range(0, len(self.list_aq_pri_sp)):
+        #    self.charge_vector.append(self.list_aq_pri_sp[i].charge)
+        #for i in range(0, len(self.list_aq_sec_sp)):
+         #   self.charge_vector.append(self.list_aq_sec_sp[i].charge)
     
     def create_gfw_vector (self):
         '''Creates a list of the charge values'''

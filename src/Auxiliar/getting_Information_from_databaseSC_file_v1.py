@@ -15,8 +15,6 @@ def getting_Information_from_databaseSC_file_v1 (text):
     
     # Defining output variables # The creation of these below variables has not much sense, since it can be created directly from the function call, but it helps in keeping a coherence.
     
-    Aq_Species_list =[]         # Each aqueous species is defined in an aqueous class, that is given here.
-    Sorpt_Species_list = []     # Each sorption species is defined in an sorption class, that is given here.
     Aq_Reaction_list=[]         # Each aqueous reaction is defined in an reaction class, that is given here.
     Sorpt_Reaction_list = []    # Each sorption species is defined in an reaction class, that is given here.
                                 # Note: the 4 list defined above can be put together, it is keep separated for a better handle
