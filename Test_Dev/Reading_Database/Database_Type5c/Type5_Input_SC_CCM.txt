@@ -1,0 +1,13 @@
+Solution
+# Concentrations which are supposed to be mol/L
+
+H+	1e-8		# Actually pH = -log(ah+),  so if pH is given no H+ need, and also what would be given would be ah, not concentration of the basis, must be discussed
+AsO4-3 	0.025e-6
+
+Sorption
+# Name of the primary surface ('Surface_component')	# mols or (mols/L) T_solid 	# Specific_surface_area [m^2/g]		# grams [g]/ solid concentration [g/l]
+# Units must still be decided or be assured by the user that they have sense
+SurfOH 							0.07   				600. 					30.
+-type CCM				
+-C1	0.020983919
+

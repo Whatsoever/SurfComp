@@ -12,6 +12,7 @@ It is a daughter of Database_SC but it can be used without a database.
 from Database_SC import Database_SC
 import numpy as np
 import scipy.integrate as integrate
+from scipy import optimize
 
 class ChemSys_Surf (Database_SC):
     '''
@@ -616,7 +617,47 @@ class ChemSys_Surf (Database_SC):
         self.c = c_n
         return c_n
     
+    
+    def speciation_Westall1980_CCM_v2 (self, tolerance = 1e-6, max_iterations = 100, x = None):
+        '''
+            Implementation of the algorithm given in "Chemical Equilibrium Including Adsorption on Charged Surfaces" Westall, 1980
+            ages 37-to-39
+        '''
+        # scipy.optimize.newton(func, x0, fprime=None, args=(), tol=1.48e-08, maxiter=50, fprime2=None, x1=None, rtol=0.0, full_output=False, disp=True)[source]
+        S1, S2 = self.separte_S_into_S1_and_S2()
+        pos_start_elec = self.length_aq_pri_sp + self.length_sorpt_pri_sp
+        pos_end_elec = self.length_aq_pri_sp + self.length_sorpt_pri_sp + self.length_names_elec_sorpt
+        
+        sorpt_u_vector = self.create_sorpt_vec()
+        T_chem = np.concatenate ((self.aq_u_vector, sorpt_u_vector))
+        
+        
+        c_pri = optimize.newton(self.func_newton, x, args = (T_chem, pos_start_elec, pos_end_elec, S1, S2), fprime = self.Jacobian_Speciation_Westall1980_func)
+        
+        log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_pri)))      # Update secondary
+        c2 =10**log_c2
+        c_n = np.concatenate ((c_pri, c2))
+        
+        return c_n
      
+    def func_newton (self, x, T_chem, pos_start_elec, pos_end_elec, S1, S2):
+        '''
+            x is the vector of primary species
+        '''
+        log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(x)))      # Update secondary
+        c2 =10**log_c2
+        c_n = np.concatenate ((x, c2))
+        u_electro = self.calculate_u_electro(x[pos_start_elec:pos_end_elec], c_n)
+        T = np.concatenate ((T_chem, u_electro))
+        Y = self.U.dot(c_n) - T
+        return Y
+    def Jacobian_Speciation_Westall1980_func (self, x, T_chem, pos_start_elec, pos_end_elec, S1, S2):
+        log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(x)))      # Update secondary
+        c2 =10**log_c2
+        c_n = np.concatenate ((x, c2))
+        return self.Jacobian_Speciation_Westall1980(c_n, pos_start_elec, pos_end_elec)
+        
+        
     def speciation_Westall1980_TLM (self, tolerance = 1e-6, max_iterations = 100, c_guess = None):
         '''
             Implementation of the algorithm given in "Chemical Equilibrium Including Adsorption on Charged Surfaces" Westall, 1980
