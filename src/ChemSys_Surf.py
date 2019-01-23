@@ -632,11 +632,15 @@ class ChemSys_Surf (Database_SC):
         T_chem = np.concatenate ((self.aq_u_vector, sorpt_u_vector))
         
         
-        c_pri = optimize.newton(self.func_newton, x, args = (T_chem, pos_start_elec, pos_end_elec, S1, S2), fprime = self.Jacobian_Speciation_Westall1980_func)
+        #c_pri = optimize.newton(self.func_newton, x, args = (T_chem, pos_start_elec, pos_end_elec, S1, S2), fprime = self.Jacobian_Speciation_Westall1980_func)
+        c_pri = optimize.fsolve(self.func_newton, x, args = (T_chem, pos_start_elec, pos_end_elec, S1, S2), fprime = self.Jacobian_Speciation_Westall1980_func)
+        
         
         log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_pri)))      # Update secondary
         c2 =10**log_c2
         c_n = np.concatenate ((c_pri, c2))
+        
+        self.c = c_n
         
         return c_n
      
