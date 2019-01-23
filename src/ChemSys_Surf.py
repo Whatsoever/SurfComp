@@ -713,6 +713,12 @@ class ChemSys_Surf (Database_SC):
         self.c = c_n
         return c_n
 
+
+
+
+
+
+
     def speciation_Borkovec_1983_DLM (self, tolerance = 1e-6, max_iterations = 100, c_guess = None, A_Borkovec = None, names_col = None, names_row = None ):      
         '''
             Implementation of the algorithm given in "Solution of the poisson-boltzman equation for surface excesses of ions in the diffuse layer at the oxide-electrolyte interface" Borkovec 1983

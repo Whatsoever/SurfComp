@@ -56,7 +56,8 @@ CS1.create_log_k_vector()
 X_g = np.array([1.602e-08, 7.412e-24, 2.503e-05, 5.371e-02, 4.872e-01, 4.902e-01 , 6.325e-01])
 #CS1.set_constant_ionic_strength (7.293e-06)
 
-CS1.speciation_Westall1980_TLMb (tolerance = 1e-6, max_n_iterations = 100, X_guess = X_g)
+#CS1.speciation_Westall1980_TLMb (tolerance = 1e-6, max_n_iterations = 100, X_guess = X_g)
+CS1.speciation_Westall1980_CCM_v2 (x= X_g)
 CS1.print_speciation()
 
 
