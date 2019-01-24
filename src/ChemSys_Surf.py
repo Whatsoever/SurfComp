@@ -11,6 +11,7 @@ It is a daughter of Database_SC but it can be used without a database.
 
 from Database_SC import Database_SC
 import numpy as np
+from scipy import linalg
 import scipy.integrate as integrate
 from scipy import optimize
 
@@ -228,7 +229,7 @@ class ChemSys_Surf (Database_SC):
         S1, S2 = self.separte_S_into_S1_and_S2()
         npri = self.length_aq_pri_sp +self.length_sorpt_pri_sp + self.length_names_elec_sorpt
         I = np.identity(npri)
-        Stop=-np.matmul(S1.transpose(),np.linalg.inv(S2.transpose()))
+        Stop=-np.matmul(S1.transpose(), linalg.inv(S2.transpose()))
         U = np.concatenate((I, Stop), axis=1)
         U = self.remove_electro_mass_from_U (U)
         self.U = U
@@ -595,7 +596,7 @@ class ChemSys_Surf (Database_SC):
             # Calculating the diff, Delta_X
             # In the paper Delta_X is X_old - X_new or as they called X_original - X_improved.
             # I am writing X_new- X-old, hence I use -Y instead of Y.
-            delta_X = np.linalg.solve(Z,-Y)
+            delta_X = linalg.solve(Z,-Y)
         
             # The error will be equal to the maximum increment
             err = max(abs(delta_X))
@@ -609,7 +610,7 @@ class ChemSys_Surf (Database_SC):
         
             # Update
             c_n[0:pos_end_elec] = c_n[0:pos_end_elec] + Del_mul*delta_X   # Update primary species
-            log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_n[0:pos_end_elec])))      # Update secondary
+            log_c2 = np.matmul(linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_n[0:pos_end_elec])))      # Update secondary
             c_n[pos_end_elec:] =10**log_c2
             counter_iterations += 1
         if counter_iterations >= max_iterations:
@@ -636,7 +637,7 @@ class ChemSys_Surf (Database_SC):
         c_pri = optimize.fsolve(self.func_newton, x, args = (T_chem, pos_start_elec, pos_end_elec, S1, S2), fprime = self.Jacobian_Speciation_Westall1980_func)
         
         
-        log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_pri)))      # Update secondary
+        log_c2 = np.matmul(linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_pri)))      # Update secondary
         c2 =10**log_c2
         c_n = np.concatenate ((c_pri, c2))
         
@@ -648,7 +649,7 @@ class ChemSys_Surf (Database_SC):
         '''
             x is the vector of primary species
         '''
-        log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(x)))      # Update secondary
+        log_c2 = np.matmul(linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(x)))      # Update secondary
         c2 =10**log_c2
         c_n = np.concatenate ((x, c2))
         u_electro = self.calculate_u_electro(x[pos_start_elec:pos_end_elec], c_n)
@@ -656,7 +657,7 @@ class ChemSys_Surf (Database_SC):
         Y = self.U.dot(c_n) - T
         return Y
     def Jacobian_Speciation_Westall1980_func (self, x, T_chem, pos_start_elec, pos_end_elec, S1, S2):
-        log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(x)))      # Update secondary
+        log_c2 = np.matmul(linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(x)))      # Update secondary
         c2 =10**log_c2
         c_n = np.concatenate ((x, c2))
         return self.Jacobian_Speciation_Westall1980(c_n, pos_start_elec, pos_end_elec)
@@ -691,7 +692,7 @@ class ChemSys_Surf (Database_SC):
             # Calculating the diff, Delta_X
             # In the paper Delta_X is X_old - X_new or as they called X_original - X_improved.
             # I am writing X_new- X-old, hence I use -Y instead of Y.
-            delta_X = np.linalg.solve(Z,-Y)
+            delta_X = linalg.solve(Z,-Y)
             #print(delta_X)
             # The error will be equal to the maximum increment
             err = max(abs(delta_X))
@@ -705,7 +706,7 @@ class ChemSys_Surf (Database_SC):
         
             # Update
             c_n[0:pos_end_elec] = c_n[0:pos_end_elec] + Del_mul*delta_X   # Update primary species
-            log_c2 = np.matmul(np.linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_n[0:pos_end_elec])))      # Update secondary
+            log_c2 = np.matmul(linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(c_n[0:pos_end_elec])))      # Update secondary
             c_n[pos_end_elec:] =10**log_c2
             counter_iterations += 1
         if counter_iterations >= max_iterations:
@@ -736,7 +737,7 @@ class ChemSys_Surf (Database_SC):
         #  The upper part can be expanded to add more outside inputs (Maybe later)
         # for equaiton 20, I need the right K
         S1, S2 = self.separte_S_into_S1_and_S2()
-        l_k_comp = np.matmul(np.linalg.inv(S2),self.log_k_vector)
+        l_k_comp = np.matmul(linalg.inv(S2),self.log_k_vector)
         
         
         K_eqn20_bulk = np.concatenate((np.zeros(self.length_aq_pri_sp), l_k_comp[:self.length_aq_sec_sp]))
@@ -776,7 +777,7 @@ class ChemSys_Surf (Database_SC):
             Y = np.matmul(B.transpose(), c) - T
             # Now the jacobian must be created
             Z = self.create_jacobian_Borkovec_1983_symm(A, B, c, X, I, z_vec ,g_vec)
-            delta_X = np.linalg.solve(Z,-Y)
+            delta_X = linalg.solve(Z,-Y)
             #print(delta_X)
             # The error will be equal to the maximum increment
             err = max(abs(delta_X))
@@ -818,7 +819,7 @@ class ChemSys_Surf (Database_SC):
             Y = np.matmul(B.transpose(), c) - T
             # Now the jacobian must be created
             Z = self.create_jacobian_Borkovec_1983_asymm( A, B, c, X, z_vec, g_vec)
-            delta_X = np.linalg.solve(Z,-Y)
+            delta_X = linalg.solve(Z,-Y)
             # The error will be equal to the maximum increment
             err = max(abs(delta_X))
             # Relaxation factor borrow from Craig M.Bethke to avoid negative values
@@ -1300,8 +1301,8 @@ class ChemSys_Surf (Database_SC):
         Boltzfactor =  np.ones(self.length_names_elec_sorpt)              # Boltzfactor ==> exp(-psi*F/RT)  Later I will need psi but not yet. Now I only need the boltzman factor for mj and mp guesses
         
         S1, S2 = self.separte_S_into_S1_and_S2()
-        S_prima = -np.matmul(np.linalg.inv(S2),S1)
-        log_K_prima = np.matmul(np.linalg.inv(S2), self.log_k_vector)
+        S_prima = -np.matmul(linalg.inv(S2),S1)
+        log_K_prima = np.matmul(linalg.inv(S2), self.log_k_vector)
         
         ionic_strength = 0  # self.calculate_ionic_strength (c_aqueouspecies)
         log_a_water = np.log10(1-(0.018*np.sum(mi)))              # calculating the log activity of water (water has not coefficient)
@@ -1385,7 +1386,7 @@ class ChemSys_Surf (Database_SC):
                 J = np.c_[Jw,Jip]
                 
                 # Solution Newthon-Raphson
-                delta_c = np.linalg.solve(J,-R)
+                delta_c = linalg.solve(J,-R)
                 err = max(abs(delta_c))
                 #print(err)
                 # relaxation factor
@@ -1550,10 +1551,10 @@ class ChemSys_Surf (Database_SC):
             ages 37-to-39
         '''
         S1, S2 = self.separte_S_into_S1_and_S2()
-        S_prima = -np.matmul(np.linalg.inv(S2),S1)
+        S_prima = -np.matmul(linalg.inv(S2),S1)
         ## Since I am copy the algortihm presented. I must started defining the same variables that they use.
         A = self.TMLb_obtain_matrix_A()
-        log_kp = np.matmul(np.linalg.inv(S2), self.log_k_vector) 
+        log_kp = np.matmul(linalg.inv(S2), self.log_k_vector) 
         LOG_K =  np.concatenate((np.zeros(self.length_aq_pri_sp+self.length_sorpt_pri_sp), log_kp))
         
                                                        # The vector contains first 0, related to primary species and then the constants of sec aq reactions and sec sorption reactions
@@ -1585,7 +1586,7 @@ class ChemSys_Surf (Database_SC):
             Z = self.TMLb_Jacobian(A, C, X)
             
             # solving
-            delta_X = np.linalg.solve(Z,-Y)
+            delta_X = linalg.solve(Z,-Y)
             # The error will be equal to the maximum increment
             err = max(abs(delta_X))
             print(err)
