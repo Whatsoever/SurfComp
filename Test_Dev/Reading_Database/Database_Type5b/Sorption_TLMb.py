@@ -51,13 +51,15 @@ print(np.array_equal(CS1.S, CS1_S))
 CS1.create_U ()
 CS1.create_log_k_vector()
 # c_ = ['H+', 'Na+', 'Cl-', 'SOH', 'SOH_Boltzf_psi_0', 'SOH_Boltzf_psi_beta', 'SOH_Boltzf_psi_diffuselayer', 'OH-', 'SOH2+', 'SO-', 'SOH2Cl', 'SONa']
-# c_guess = np.array([1.602e-08, 7.412e-24, 2.503e-05, 5.371e-02, 4.872e-01, 4.902e-01 , 6.325e-01, 6.366e-07, 8.143e-03, 8.117e-03, 8.945e-35, 2.500e-05])
+c_guess = np.array([1.602e-08, 7.412e-24, 2.503e-05, 5.371e-02, 4.872e-01, 4.902e-01 , 6.325e-01, 6.366e-07, 8.143e-03, 8.117e-03, 8.945e-35, 2.500e-05])
 # X = ['H+', 'Na+', 'Cl-', 'SOH', 'SOH_Boltzf_psi_0', 'SOH_Boltzf_psi_beta', 'SOH_Boltzf_psi_diffuselayer']
 X_g = np.array([1.602e-08, 7.412e-24, 2.503e-05, 5.371e-02, 4.872e-01, 4.902e-01 , 6.325e-01])
 #CS1.set_constant_ionic_strength (7.293e-06)
-
-#CS1.speciation_Westall1980_TLMb (tolerance = 1e-6, max_n_iterations = 100, X_guess = X_g)
-CS1.speciation_Westall1980_CCM_v2 (x= X_g)
+#CS1.speciation_Westall1980_TLM (tolerance = 1e-6, max_iterations = 100, c_guess = c_guess)
+#CS1.speciation_Westall1980_TLMb (tolerance = 1e-8, max_n_iterations = 100, X_guess = X_g)
+#CS1.speciation_Westall1980_CCM_v2 (x= X_g)
+Ln_X = np.log(X_g)
+CS1.speciation_Westall1980_v3 ( tolerance = 1e-6, max_iterations = 100, Ln_x = Ln_X)
 CS1.print_speciation()
 
 

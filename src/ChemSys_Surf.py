@@ -14,7 +14,7 @@ import numpy as np
 from scipy import linalg
 import scipy.integrate as integrate
 from scipy import optimize
-
+#import scipy as sp
 class ChemSys_Surf (Database_SC):
     '''
         ChemSys is a daughter class from Database_SC which is a daughter class of Database. Hence, they depend on these parameters.        
@@ -661,8 +661,186 @@ class ChemSys_Surf (Database_SC):
         c2 =10**log_c2
         c_n = np.concatenate ((x, c2))
         return self.Jacobian_Speciation_Westall1980(c_n, pos_start_elec, pos_end_elec)
+    
+    def speciation_Westall1980_v3 (self, tolerance = 1e-6, max_iterations = 100, Ln_x = None):
+        '''
+            Implementation of the algorithm given in "Chemical Equilibrium Including Adsorption on Charged Surfaces" Westall, 1980
+            ages 37-to-39.
+            That is the third version, here we will try to work with ln(X) as primary species instead of X. Such thing have an effect in the formulation.
+            Specifically, the Newton-Rapshon jacobian of the system should become symetric (I am not taking into account activity, not sure if using activity and its derivatives the matrix is still symetric)
+        '''
+        # scipy.optimize.newton(func, x0, fprime=None, args=(), tol=1.48e-08, maxiter=50, fprime2=None, x1=None, rtol=0.0, full_output=False, disp=True)[source]
+        S1, S2 = self.separte_S_into_S1_and_S2()
+        pos_start_elec = self.length_aq_pri_sp + self.length_sorpt_pri_sp
+        pos_end_elec = self.length_aq_pri_sp + self.length_sorpt_pri_sp + self.length_names_elec_sorpt
+        
+        sorpt_u_vector = self.create_sorpt_vec()
+        T_chem = np.concatenate ((self.aq_u_vector, sorpt_u_vector))
+        
+        lnK = self.log_k_vector/np.log10(np.e)      # Changing the base from log_10 to ln (log_e)
+        
+        #c_pri = optimize.newton(self.func_newton, x, args = (T_chem, pos_start_elec, pos_end_elec, S1, S2), fprime = self.Jacobian_Speciation_Westall1980_func)
+        ln_c_pri = optimize.fsolve(self.residual_fun_v3, Ln_x, args = (lnK, T_chem, pos_start_elec, pos_end_elec, S1, S2), fprime = self.Jacobian_Residual_fun_v3)
         
         
+        ln_c2 = np.matmul(linalg.inv(S2), lnK - np.matmul(S1, ln_c_pri))
+        
+        
+        c1 = np.exp(ln_c_pri)
+        c2 = np.exp(ln_c2)
+        c_n = np.concatenate ((c1, c2))
+        
+        self.c = c_n
+        
+        return c_n
+    
+    def residual_fun_v3 (self, x, lnK, T_chem, pos_start_elec, pos_end_elec, S1, S2):
+        '''
+            This functions is not the 3rd version of an old function but it is related to the speciation_Westall1980_v3.
+            The main algorithm uses the algorithms and formulas that can be found on the Westall paper but for the unknown variables it relies on ln X variables instead of just X variables.
+            The function that I must bild is still Y = U*c -T
+            what changes is how the c parameters are obtained. Before we assumed that our indepent variable was a sort of concentration, now the variable is exactly the lnX of the sort of concentration
+            Hence the ecuation for c is translated into:
+                c = exp(lnKi+sum(aik*lnX))
+                but since we are using the stoichiometric matrix the relationship will be
+                lnC2 = inv(S2)*lnk - inv(S2)*S1*lnX
+                and c is the concatenation of c = exp(lnX) and exp(lnC2)
+        '''
+        
+        # c = 
+        ln_c2 = np.matmul(linalg.inv(S2), lnK - np.matmul(S1, x))
+        c1 = np.exp(x)
+        c2 = np.exp(ln_c2)
+        c_n = np.concatenate ((c1, c2))
+        u_electro = self.calculate_u_electro(c1[pos_start_elec:pos_end_elec], c_n)
+        T = np.concatenate ((T_chem, u_electro))
+        Y = self.U.dot(c_n) - T
+        return Y
+    
+    def Jacobian_Residual_fun_v3 (self, x, lnK, T_chem, pos_start_elec, pos_end_elec, S1, S2):
+        '''
+            This functions is not the 3rd version of an old function but it is related to the speciation_Westall1980_v3.
+        '''
+        ln_c2 = np.matmul(linalg.inv(S2), lnK - np.matmul(S1, x))
+        c1 = np.exp(x)
+        c2 = np.exp(ln_c2)
+        c_n = np.concatenate ((c1, c2))
+        return self.Jacobian_Speciation_Westall1980_modification_lnX (c_n, pos_start_elec, pos_end_elec)
+    
+    def Jacobian_Speciation_Westall1980_modification_lnX (self, C, n_aq_plus_n_sorpt, n_primaryspecies):
+        '''
+            The jacobian matrix following an implementation based on the algorithm of  Westall (1980) 
+            "Chemical equilibrium Including Adsorption on Charged Surfaces"
+            Pages 37-to-39
+            It is assumed that C is order first with the primary species and then with the secondary species such as C = [C1 C2]
+            This function is identical to Jacobian_Speciation_Westall1980 but it has been modified considering the lnX the unknown variable.
+            That means that the derivation of the residual function for the Newton-Raphson process is done by lnC1 (or LnX) and not C1 (or X)
+            
+            primary function:
+                zjk = sum(aij*aik*Ci/Xk)  becomes now zjk = sum(aij*aik*Ci)
+            For CCM:
+                z_psipsi =  sum(aij*aipsi*Ci/Xpsi) + (s*a*C*R*T)/(F*F*Xpsi)
+                becomes now
+                z_psipsi =  sum(aij*aipsi*Ci) + (s*a*C*R*T)/(F*F)
+            For TLM:
+                
+                
+        '''
+        # The first part treats all terms as it was a normal speciation
+        Z = np.zeros((n_primaryspecies, n_primaryspecies))
+        for i in range(0, n_primaryspecies):
+            for j in range(0, n_primaryspecies):
+                Z[i,j]= np.matmul(np.multiply(self.U[i,:], self.U[j,:]), C)
+    
+        # According to the point 2 of Table III of Westall the term C*sa/F*RT/Funknwon must be added to the electrostatic part
+        # I am supposing here that all the sorption phases are CCM
+        for i in range(0, self.length_sorpt_pri_sp):
+            pos_unknown_vector = n_aq_plus_n_sorpt
+            # I am supposing here that the sorption phases are CCM
+            if self.list_sorpt_pri_sp[i].type_sorption == 'CCM':
+                D1 = self.universal_gas_constant*self.temperature
+                D2 = self.Faraday_constant
+                F = ((self.list_sorpt_pri_sp[i].sp_surf_area*self.list_sorpt_pri_sp[i].solid_concentration_or_grams)/self.Faraday_constant)
+                Z[pos_unknown_vector,pos_unknown_vector] = Z[pos_unknown_vector, pos_unknown_vector] + (self.list_sorpt_pri_sp[i].C1*F)*(D1/D2)
+                pos_unknown_vector += 1
+            # I am supposing here that the sorption phases are TLM
+            elif self.list_sorpt_pri_sp[i].type_sorption == 'TLM':
+                
+                D1 = self.universal_gas_constant*self.temperature
+                D2 = self.Faraday_constant
+                D3 = self.Faraday_constant
+                D4 = self.Faraday_constant
+                F = ((self.list_sorpt_pri_sp[i].sp_surf_area*self.list_sorpt_pri_sp[i].solid_concentration_or_grams)/self.Faraday_constant)
+                # O-plane
+                # plane 0 - 0
+                Z[pos_unknown_vector,pos_unknown_vector] = Z[pos_unknown_vector, pos_unknown_vector] + (self.list_sorpt_pri_sp[i].C1*F)*(D1/D2)
+                # plane 0 - b
+                Z[pos_unknown_vector,pos_unknown_vector+1] = Z[pos_unknown_vector, pos_unknown_vector+1] - (self.list_sorpt_pri_sp[i].C1*F)*(D1/D3)
+                # plane 0 - d
+                # plane b - 0
+                Z[pos_unknown_vector + 1,pos_unknown_vector] = Z[pos_unknown_vector + 1,pos_unknown_vector] - (self.list_sorpt_pri_sp[i].C1*F)*(D1/D2)
+                # plane b - b
+                Z[pos_unknown_vector + 1,pos_unknown_vector + 1] = Z[pos_unknown_vector + 1,pos_unknown_vector + 1] + ((self.list_sorpt_pri_sp[i].C1+self.list_sorpt_pri_sp[i].C2)*F)*(D1/D3)
+                # plane b - d
+                Z[pos_unknown_vector + 1,pos_unknown_vector + 2] = Z[pos_unknown_vector + 1,pos_unknown_vector + 2] - (self.list_sorpt_pri_sp[i].C2*F)*(D1/D4)
+                # plane d - 0
+                # plane d - b
+                Z[pos_unknown_vector + 2,pos_unknown_vector + 1] = Z[pos_unknown_vector + 2,pos_unknown_vector + 1] - (self.list_sorpt_pri_sp[i].C2*F)*(D1/D3)
+                # plane d - d
+                # The part below correspond to the paper, which is wrong and must be deleted, once all part agree.
+                    # A = -F/(2*R*T)
+                #param = self.Faraday_constant/(2*(self.universal_gas_constant*self.temperature))
+                #A = -param
+                #
+                #pos_C = self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_names_elec_sorpt
+                #C_aq = np.concatenate((C[:self.length_aq_pri_sp], C[pos_C : (pos_C + self.length_aq_sec_sp)]))
+                #
+                #I = self.calculate_ionic_strength(C_aq)
+                #B = np.sqrt(8*self.permittivity_free_space*self.dielectric_constant*self.universal_gas_constant*self.temperature*I)
+                #psi_d = self.Boltzman_factor_2_psi(C[pos_unknown_vector+2])
+                #par_C = param*psi_d
+                #C = np.cosh(par_C)
+                #F_d = A*B*C
+                #Z[pos_unknown_vector + 2,pos_unknown_vector + 2] = F_d + (self.list_sorpt_pri_sp[i].C2*F)*(D1/D4)
+                pos_C = self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_names_elec_sorpt
+                C_aq = np.concatenate((C[:self.length_aq_pri_sp], C[pos_C : (pos_C + self.length_aq_sec_sp)]))
+                I = self.calculate_ionic_strength(C_aq)
+                B = np.sqrt(8*self.permittivity_free_space*self.dielectric_constant*self.universal_gas_constant*self.temperature*I)
+                B_half = B/2
+                C = np.cosh(-np.log(C[pos_unknown_vector+2])/2)
+                F_d = C*B_half
+                Z[pos_unknown_vector + 2,pos_unknown_vector + 2] = F_d + (self.list_sorpt_pri_sp[i].C2*F)*(D1/D4)
+                
+                pos_unknown_vector +=3
+                
+        return Z
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     def speciation_Westall1980_TLM (self, tolerance = 1e-6, max_iterations = 100, c_guess = None):
         '''
             Implementation of the algorithm given in "Chemical Equilibrium Including Adsorption on Charged Surfaces" Westall, 1980
@@ -693,6 +871,8 @@ class ChemSys_Surf (Database_SC):
             # In the paper Delta_X is X_old - X_new or as they called X_original - X_improved.
             # I am writing X_new- X-old, hence I use -Y instead of Y.
             delta_X = linalg.solve(Z,-Y)
+            #delta_X = sp.sparse.linalg.gmres(Z,-Y)
+            #delta_X = delta_X[0]
             #print(delta_X)
             # The error will be equal to the maximum increment
             err = max(abs(delta_X))
@@ -1187,19 +1367,29 @@ class ChemSys_Surf (Database_SC):
                 # plane d - b
                 Z[pos_unknown_vector + 2,pos_unknown_vector + 1] = Z[pos_unknown_vector + 2,pos_unknown_vector + 1] - (self.list_sorpt_pri_sp[i].C2*F)*(D1/D3)
                 # plane d - d
-                    # A = -F/(2*R*T)
-                param = self.Faraday_constant/(2*(self.universal_gas_constant*self.temperature))
-                A = -param
+                
+                ###### ---This part below is what is written in the paper of Westall
+                              # A = -F/(2*R*T)
+                #param = self.Faraday_constant/(2*(self.universal_gas_constant*self.temperature))
+                #A = -param
                 #
+                #pos_C = self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_names_elec_sorpt
+                #C_aq = np.concatenate((C[:self.length_aq_pri_sp], C[pos_C : (pos_C + self.length_aq_sec_sp)]))
+                #
+                #I = self.calculate_ionic_strength(C_aq)
+                #B = np.sqrt(8*self.permittivity_free_space*self.dielectric_constant*self.universal_gas_constant*self.temperature*I)
+                #psi_d = self.Boltzman_factor_2_psi(C[pos_unknown_vector+2])
+                #par_C = param*psi_d
+                #C = np.cosh(par_C)
+                #F_d = A*B*C
+                ########## This part below is my own assumption, since I think that the equation given by the paper is wrong derivated.
                 pos_C = self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_names_elec_sorpt
                 C_aq = np.concatenate((C[:self.length_aq_pri_sp], C[pos_C : (pos_C + self.length_aq_sec_sp)]))
-                #
                 I = self.calculate_ionic_strength(C_aq)
                 B = np.sqrt(8*self.permittivity_free_space*self.dielectric_constant*self.universal_gas_constant*self.temperature*I)
-                psi_d = self.Boltzman_factor_2_psi(C[pos_unknown_vector+2])
-                par_C = param*psi_d
-                C = np.cosh(par_C)
-                F_d = A*B*C
+                in_cosh = -np.log(C[pos_unknown_vector+2])/2
+                F_d = (B/2)*np.cosh(in_cosh)*(1/C[pos_unknown_vector+2])
+                
                 Z[pos_unknown_vector + 2,pos_unknown_vector + 2] = F_d + (self.list_sorpt_pri_sp[i].C2*F)*(D1/D4)
                 
                 pos_unknown_vector +=3
@@ -1688,16 +1878,27 @@ class ChemSys_Surf (Database_SC):
         ## plane db
         Z[n_ele_plane0+2, n_ele_plane0+1] = Z[n_ele_plane0+2, n_ele_plane0+1] - C2*sa_F*(RT/(self.Faraday_constant*X[n_ele_plane0+1]))
         ## plane dd
+        ### This part is what is written on the paper of Westall, which is 95% sure wrong.
+       # partB =  C2*sa_F*(RT/(self.Faraday_constant*X[n_ele_plane0+2]))
+        #A = -self.Faraday_constant/(2*RT)
+        #c_aq = np.concatenate((C[:self.length_aq_pri_sp],C[self.length_aq_pri_sp+self.length_sorpt_pri_sp:self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_aq_sec_sp]))
+        #ionic_strength = self.calculate_ionic_strength (c_aq)
+        #B = np.sqrt(8*self.dielectric_constant*self.permittivity_free_space*self.universal_gas_constant*self.temperature*ionic_strength) 
+        #psid = -np.log(X[-1])*(RT/self.Faraday_constant)
+        #C = np.cosh((self.Faraday_constant*psid)/(2*RT))
+        #partA = A*B*C
+        #Z[n_ele_plane0+2, n_ele_plane0+2] = partA + partB
+       
+        ### This is what I think it should be and so far has proven to give the proper results.
         partB =  C2*sa_F*(RT/(self.Faraday_constant*X[n_ele_plane0+2]))
-        A = -self.Faraday_constant/(2*RT)
         c_aq = np.concatenate((C[:self.length_aq_pri_sp],C[self.length_aq_pri_sp+self.length_sorpt_pri_sp:self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_aq_sec_sp]))
         ionic_strength = self.calculate_ionic_strength (c_aq)
         B = np.sqrt(8*self.dielectric_constant*self.permittivity_free_space*self.universal_gas_constant*self.temperature*ionic_strength) 
-        psid = -np.log(X[-1])*(RT/self.Faraday_constant)
-        C = np.cosh((self.Faraday_constant*psid)/(2*RT))
+        A =(1/(2*X[n_ele_plane0+2]))
+        C = np.cosh((-np.log(X[n_ele_plane0+2])/2))
         partA = A*B*C
         Z[n_ele_plane0+2, n_ele_plane0+2] = partA + partB
-       
+        
         return Z
             
 ##################################################
