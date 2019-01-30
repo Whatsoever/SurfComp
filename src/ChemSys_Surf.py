@@ -662,12 +662,13 @@ class ChemSys_Surf (Database_SC):
         c_n = np.concatenate ((x, c2))
         return self.Jacobian_Speciation_Westall1980(c_n, pos_start_elec, pos_end_elec)
     
-    def speciation_Westall1980_v3 (self, tolerance = 1e-6, max_iterations = 100, Ln_x = None):
+    def speciation_Westall1980_v3 (self, tolerance = 1e-6, max_iterations = 100, Ln_x = None, activity_b = False):
         '''
             Implementation of the algorithm given in "Chemical Equilibrium Including Adsorption on Charged Surfaces" Westall, 1980
             ages 37-to-39.
             That is the third version, here we will try to work with ln(X) as primary species instead of X. Such thing have an effect in the formulation.
             Specifically, the Newton-Rapshon jacobian of the system should become symetric (I am not taking into account activity, not sure if using activity and its derivatives the matrix is still symetric)
+            The activity_b is just a boolean that if true, the speciaiton of the secondary species in  is done by substitution of
         '''
         # scipy.optimize.newton(func, x0, fprime=None, args=(), tol=1.48e-08, maxiter=50, fprime2=None, x1=None, rtol=0.0, full_output=False, disp=True)[source]
         S1, S2 = self.separte_S_into_S1_and_S2()
@@ -680,7 +681,7 @@ class ChemSys_Surf (Database_SC):
         lnK = self.log_k_vector/np.log10(np.e)      # Changing the base from log_10 to ln (log_e)
         
         #c_pri = optimize.newton(self.func_newton, x, args = (T_chem, pos_start_elec, pos_end_elec, S1, S2), fprime = self.Jacobian_Speciation_Westall1980_func)
-        ln_c_pri = optimize.fsolve(self.residual_fun_v3, Ln_x, args = (lnK, T_chem, pos_start_elec, pos_end_elec, S1, S2), fprime = self.Jacobian_Residual_fun_v3)
+        ln_c_pri = optimize.fsolve(self.residual_fun_v3, Ln_x, args = (lnK, T_chem, pos_start_elec, pos_end_elec, S1, S2, activity_b), fprime = self.Jacobian_Residual_fun_v3)
         
         
         ln_c2 = np.matmul(linalg.inv(S2), lnK - np.matmul(S1, ln_c_pri))
@@ -694,7 +695,7 @@ class ChemSys_Surf (Database_SC):
         
         return c_n
     
-    def residual_fun_v3 (self, x, lnK, T_chem, pos_start_elec, pos_end_elec, S1, S2):
+    def residual_fun_v3 (self, x, lnK, T_chem, pos_start_elec, pos_end_elec, S1, S2, activity_b):
         '''
             This functions is not the 3rd version of an old function but it is related to the speciation_Westall1980_v3.
             The main algorithm uses the algorithms and formulas that can be found on the Westall paper but for the unknown variables it relies on ln X variables instead of just X variables.
@@ -706,26 +707,88 @@ class ChemSys_Surf (Database_SC):
                 lnC2 = inv(S2)*lnk - inv(S2)*S1*lnX
                 and c is the concatenation of c = exp(lnX) and exp(lnC2)
         '''
-        
-        # c = 
-        ln_c2 = np.matmul(linalg.inv(S2), lnK - np.matmul(S1, x))
-        c1 = np.exp(x)
-        c2 = np.exp(ln_c2)
-        c_n = np.concatenate ((c1, c2))
+        if activity_b == False:
+            c_n = self.speciation_no_activity_v3 (lnK, S1, S2, x)
+        elif activity_b == True:
+            c_n = self.speciation_activity_v3 (lnK, S1, S2, x)
+        c1 = np.exp(x)    
         u_electro = self.calculate_u_electro(c1[pos_start_elec:pos_end_elec], c_n)
         T = np.concatenate ((T_chem, u_electro))
         Y = self.U.dot(c_n) - T
         return Y
     
-    def Jacobian_Residual_fun_v3 (self, x, lnK, T_chem, pos_start_elec, pos_end_elec, S1, S2):
+    def Jacobian_Residual_fun_v3 (self, x, lnK, T_chem, pos_start_elec, pos_end_elec, S1, S2, activity_b):
         '''
             This functions is not the 3rd version of an old function but it is related to the speciation_Westall1980_v3.
         '''
+        if activity_b == False:
+            c_n = self.speciation_no_activity_v3 (lnK, S1, S2, x)
+        elif activity_b == True:
+            c_n = self.speciation_activity_v3 (lnK, S1, S2, x)
+            
+        return self.Jacobian_Speciation_Westall1980_modification_lnX (c_n, pos_start_elec, pos_end_elec)
+    
+    def speciation_no_activity_v3 (self, lnK, S1, S2, x):
         ln_c2 = np.matmul(linalg.inv(S2), lnK - np.matmul(S1, x))
         c1 = np.exp(x)
         c2 = np.exp(ln_c2)
         c_n = np.concatenate ((c1, c2))
-        return self.Jacobian_Speciation_Westall1980_modification_lnX (c_n, pos_start_elec, pos_end_elec)
+        return c_n
+    
+    def speciation_activity_v3 (self, lnK, S1, S2, x):
+        c_1 = np.exp(x)
+        c_2 = np.zeros(S2.shape[1])
+        
+        c_2 = self.subfunction_of_speciation_activity_v3  (c_2, c_1, lnK, S1, S2)
+        c_2 = optimize.fixed_point(self.subfunction_of_speciation_activity_v3, c_2, args = (c_1, lnK, S1, S2))
+        
+        #
+      #  tolerance = 1e-8
+       # n_max_iterations = 100
+        #error = 1
+        # I need to implement some sort of Picard method
+        #c_1 = np.exp(x)
+
+        #c_2 = np.zeros(S2.shape[1])
+        
+       # c_k = self.subfunction_of_speciation_activity_v3  (c_2, c_1, lnK, S1, S2)
+        #counter = 0
+       
+        #while error > tolerance and counter < n_max_iterations:
+         #   c_k1 = self.subfunction_of_speciation_activity_v3  (c_k, c_1, lnK, S1, S2)
+          #  error = max(abs(c_k1-c_k))
+           # print(error)
+            #c_k = c_k1.copy()
+            #counter += 1
+        #if counter >= n_max_iterations:
+         #   raise ValueError('Max number of iterations surpassed in speciation_activity_v3 (self, lnK, S1, S2, x.')
+        c_n = np.concatenate((c_1, c_2))
+        return c_n
+    
+    def subfunction_of_speciation_activity_v3 (self, c_2, c_1, lnK, S1, S2):
+        c_a_pri = c_1[:self.length_aq_pri_sp]
+        c_a_sec = c_2[:self.length_aq_sec_sp]
+        ionic_strength = self.calculate_ionic_strength (np.concatenate((c_a_pri, c_a_sec)))
+        log_a_coeff_aq_pri_sp = self.calculate_log_activity_coefficient_aq_pri_species (ionic_strength)
+        a_coeff_aq_pri_sp = 10**(log_a_coeff_aq_pri_sp)
+        log_a_coeff_aq_sec_sp = self.calculate_log_activity_coefficient_aq_sec_species (ionic_strength) 
+        a_coeff_aq_sec_sp = 10**(log_a_coeff_aq_sec_sp)
+        if 'H2O' in self.names_aq_pri_sp:
+            ind = self.names_aq_pri_sp.index('H2O')
+            c_a_pri_t = np.delte(c_a_pri, ind)
+            a_coeff_aq_pri_sp [ind] = 1-(0.018*np.sum(np.concatenate ((c_a_pri_t, c_a_sec))))
+        elif 'H2O' in self.names_aq_sec_sp:
+            ind = self.names_aq_sec_sp.index('H2O')
+            c_a_sec_t = np.delte(c_a_sec, ind)
+            a_coeff_aq_sec_sp [ind] = 1-(0.018*np.sum(np.concatenate ((c_a_pri, c_a_sec_t))))
+        
+        c_1[:self.length_aq_pri_sp] = c_1[:self.length_aq_pri_sp]*a_coeff_aq_pri_sp
+        ln_c1_a1 = np.log(c_1)
+        ln_c2_a2 = np.matmul(linalg.inv(S2), lnK - np.matmul(S1, ln_c1_a1))
+        ln_c2_a2[:self.length_aq_sec_sp] = ln_c2_a2[:self.length_aq_sec_sp] - np.log(a_coeff_aq_sec_sp)
+        c_2 = np.exp(ln_c2_a2)
+        print(c_2)
+        return c_2
     
     def Jacobian_Speciation_Westall1980_modification_lnX (self, C, n_aq_plus_n_sorpt, n_primaryspecies):
         '''
