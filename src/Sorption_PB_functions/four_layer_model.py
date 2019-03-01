@@ -47,10 +47,10 @@ def fourth_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_bo
     # scipy.optimize.fsolve(func, x0, args=(), fprime=None, full_output=0, col_deriv=0, xtol=1.49012e-08, maxfev=0, band=None, epsfcn=None, factor=100, diag=None)[source]¶
     X = sp.optimize.fsolve(func_NR_FLM, X_guess, args = (), fprime = Jacobian_NR_FLM)
     #Speciation
-    C = log_k + A*log(X)
+    C = log_k + A*np.log10(X)
     return X, C
 
-def func_NR_FLM (X, ):
+def func_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma):
     """
         This function is supossed to be linked to the fourth_layer_one_surface_speciation function.
         It just gave the evaluated vector of Y, for the newton rapshon procedure.
@@ -65,7 +65,7 @@ def func_NR_FLM (X, ):
     psi_v = [Boltzman_factor_2_psi(X[pos_psi0], temp), Boltzman_factor_2_psi(X[pos_psialpha], temp), Boltzman_factor_2_psi(X[pos_psibeta], temp), Boltzman_factor_2_psi(X[pos_psigamma], temp)]
     C_aq = C[idx_Aq]
     I = Calculate_ionic_strength(Z, C_aq)
-    T = Update_T_FLM(T, s,e, I, temp, a, Capacitances, psi_v, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma)
+    T = Update_T_FLM(T, s, e, I, temp, a, Capacitances, psi_v, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma)
     # Calculation of Y
     Y= np.matmul(A.transpose(),C)-T
     return Y
@@ -93,7 +93,7 @@ def Calculate_ionic_strength(Z,C):
     I = I/2
     return I
 
-def Update_T_FLM(T, s,e, I, temp, a, C, psi_v, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma):
+def Update_T_FLM(T, s,e, I, temp, a, C, psi_v,zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma):
     """
         This equation is linked to func_NR_FLM. It updates the values of T for the electrostatic parameters.
         C       is the vector of capacitances. The units are supossed to be F/m²
@@ -104,7 +104,7 @@ def Update_T_FLM(T, s,e, I, temp, a, C, psi_v, pos_psi0, pos_psialpha, pos_psibe
         e       is the relative permittivity
         I       is the ionic strenght mol/m³
     """
-    # Faraday constant
+    #  constant
     F = 96485.3328959                                   # C/mol
     R =  8.314472                                       # J/(K*mol)
     eo = 8.854187871e-12                                # Farrads = F/m   - permittivity in vaccuum
@@ -139,36 +139,63 @@ def Update_T_FLM(T, s,e, I, temp, a, C, psi_v, pos_psi0, pos_psialpha, pos_psibe
     
     return T
     
-def Jacobian_NR_FLM (X):
+def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma):
     '''
         This function should give the Jacobian. Here The jacobian is calculated as Westall (1980), except the electrostatic terms that are slightly different.
         The reason is because there seems to be some typos in Westall paper.
     '''
+    #  constant
+    F = 96485.3328959                                   # C/mol [Faraday constant]
+    R =  8.314472                                       # J/(K*mol) [universal constant gas]
+    eo = 8.854187871e-12                                # Farrads = F/m   - permittivity in vaccuum
     # Speciation - mass action law
     log_C = log_k + A*np.log10(X)
+    # transf
+    C = 10**(log_C)
+    C_aq = C[idx_Aq]
+    I = Calculate_ionic_strength(Z, C_aq)
+    # instantiate Jacobian
+    length_X = X.size
+    Z = np.zeros((length_X,length_X))
+    # First part is the common of the Jacbian derivation
+    for i in range(0, length_X):
+            for j in range(0, length_X):
+                Z[i,j]= np.matmul(np.multiply(A[:,i], A[:,j]), (C/X[j]))
+    # Now the electrostatic part must be modified, one question hang on the air:
+    # Should we check that the electrostatic part is as we expected?
+    sa_F2 = (s*a)/(F*F)
+    #### plane 0
+    C1_sa_F2_RT = sa_F2*Capacitances[0]*R*temp
+    # Assigning in Jacobian (plane 0)
+    Z[pos_psi0,pos_psi0]=Z[pos_psi0,pos_psi0] + C1_sa_F2_RT/X[pos_psi0]
+    Z[pos_psi0,pos_psialpha]=Z[pos_psi0, pos_psialpha] - C1_sa_F2_RT/X[pos_psialpha]
     
+    #### plane alpha
+    C1C2_sa_F2_RT = sa_F2*R*temp*(Capacitances[0]+Capacitances[1])
+    C2_sa_F2_RT = sa_F2*Capacitances[1]*R*temp
+    # Assigning in Jacobian (plane alpha)
+    Z[pos_psialpha,pos_psi0]=Z[pos_psialpha, pos_psi0] - C1_sa_F2_RT/X[pos_psi0]
+    Z[pos_psialpha,pos_psialpha]=Z[pos_psialpha, pos_psialpha] + C1C2_sa_F2_RT/X[pos_psialpha]
+    Z[pos_psialpha,pos_psibeta]= Z[pos_psialpha,pos_psibeta] - C2_sa_F2_RT/X[pos_psibeta]
     
+    #### plane beta
+    C3C2_sa_F2_RT = sa_F2*R*temp*(Capacitances[1]+Capacitances[2])
+    C3_sa_F2_RT = sa_F2*Capacitances[2]*R*temp
+    # Assigning in Jacobian (plane beta)
+    Z[pos_psibeta,pos_psialpha] = Z[pos_psibeta,pos_psialpha] - C2_sa_F2_RT/X[pos_psialpha]
+    Z[pos_psibeta, pos_psibeta] = Z[pos_psibeta, pos_psibeta] + C3C2_sa_F2_RT/X[pos_psibeta]
+    Z[pos_psibeta, pos_psigamma] = Z[pos_psibeta, pos_psigamma] - C3_sa_F2_RT/X[pos_psigamma]
     
-    
-        def Jacobian_Speciation_Westall1980_func (self, x, T_chem, pos_start_elec, pos_end_elec, S1, S2):
-        log_c2 = np.matmul(linalg.inv(S2), self.log_k_vector - np.matmul(S1, np.log10(x)))      # Update secondary
-        c2 =10**log_c2
-        c_n = np.concatenate ((x, c2))
-        return self.Jacobian_Speciation_Westall1980(c_n, pos_start_elec, pos_end_elec)
-    
-    
-    def Jacobian_Speciation_Westall1980 (self, C, n_aq_plus_n_sorpt, n_primaryspecies):
-        '''
-            The jacobian matrix following an implementation based on the algorithm of  Westall (1980) 
-            "Chemical equilibrium Including Adsorption on Charged Surfaces"
-            Pages 37-to-39
-            It is assumed that C is order first with the primary species and then with the secondary species such as C = [C1 C2]
-        '''
-        # The first part treats all terms as it was a normal speciation
-        Z = np.zeros((n_primaryspecies, n_primaryspecies))
-        for i in range(0, n_primaryspecies):
-            for j in range(0, n_primaryspecies):
-                Z[i,j]= np.matmul(np.multiply(self.U[i,:], self.U[j,:]), (C/C[j]))
-    
-        # According to the point 2 of Table III of Westall the term C*sa/F*RT/Funknwon must be added to the electrostatic part
-        # I am supposing here that all the sorption phases are CCM
+    #### plane gamma [diffusive plane]
+    gb_term = (R*temp*Capacitances[2])/F
+    # PB solution of diffusive layer
+    # F/2RT (8RTε_o εI)^(1/2) cosh((Fψ_d)/2RT)
+    dif_term = ((zel*F)/(2*R*temp))*np.sqrt(8*R*temp*eo*e*I)*np.cosh((zel*Boltzman_factor_2_psi(X[pos_psigamma], temp)*F)/(2*R*temp))
+    dif_term = dif_term+Capacitances[2]
+    dif_term = dif_term*((-R*temp)/F)
+    # Assigning in Jacobian (plane beta)
+    Z[pos_psigamma,pos_psibeta] = Z[pos_psigamma, pos_psibeta] - gb_term/X[pos_psibeta]
+    Z[pos_psigamma, pos_psigamma] = Z[pos_psigamma, pos_psigamma] +  dif_term/X[pos_psigamma] #Z[pos_bgamma, pos_bgamma] should be equal to  0
+    # finally just return Z
+    return Z
+
