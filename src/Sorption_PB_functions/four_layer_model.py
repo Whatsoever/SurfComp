@@ -15,7 +15,8 @@ Implementation of the fourth layer model with just one surface. In a function ma
 allowing its utilization in other codes and this code.
 """
 
-def fourth_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_boltz0, pos_boltzalpha, pos_boltzbeta, pos_boltzgamma):
+
+def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp,  zel=1):
     """
     -The implementation of these algorithm is based on Westall (1980), but slightly modified in order to allow a 4th electrostatic layer.
         Arguments:
@@ -25,7 +26,10 @@ def fourth_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_bo
             - idx_Aq        An index vector with the different aqueous species position. It must coincide with the rows of "A".
             - Z             The vector of charge of the different ion. The order is determine by the rows of "A" for aqueous species. That means that it is link to idx_Aq somehow.
             - pos_boltz0, pos_boltzalpha, pos_boltzbeta, pos_boltzgamma  This is basically the position of the boltzman factor for the different planes (gamma == diffusive)
-        Outpus:
+        Outputs: the outputs right now are:
+                        - C the vector of species concentrations (aqueous and surface species). The order of the species will depend on the given matrix A, so it is user dependent.
+                        - The vector X of primary unknowns. The value of the primary species of aqueous and surface species should be equivalent to the C vector. Here we can find the values
+                          of the boltzman factors, which are related to psi values.
         Preconditions: 
                         1) The order of the rows of matrix "A" must agree with the order of the unknowns in the vector X_guess.
                            Namely, if the first row correspond to the species "H+", the first unknow in X_guess must be "H+"
@@ -45,7 +49,7 @@ def fourth_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_bo
     #C_guess = log_k + A*log(X_guess)
 
     # scipy.optimize.fsolve(func, x0, args=(), fprime=None, full_output=0, col_deriv=0, xtol=1.49012e-08, maxfev=0, band=None, epsfcn=None, factor=100, diag=None)[source]¶
-    X = sp.optimize.fsolve(func_NR_FLM, X_guess, args = (), fprime = Jacobian_NR_FLM)
+    X = sp.optimize.fsolve(func_NR_FLM, X_guess, args = (A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma), fprime = Jacobian_NR_FLM)
     #Speciation
     C = log_k + A*np.log10(X)
     return X, C
@@ -53,8 +57,8 @@ def fourth_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_bo
 def func_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma):
     """
         This function is supossed to be linked to the fourth_layer_one_surface_speciation function.
-        It just gave the evaluated vector of Y, for the newton rapshon procedure.
-        Westall (1980) look at Y
+        It just gave the evaluated vector of Y, for the Newton-raphson procedure.
+        The formulation of Westall (1980) is followed.
         FLM = four layer model
     """
     # Speciation - mass action law
@@ -96,13 +100,14 @@ def Calculate_ionic_strength(Z,C):
 def Update_T_FLM(T, s,e, I, temp, a, C, psi_v,zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma):
     """
         This equation is linked to func_NR_FLM. It updates the values of T for the electrostatic parameters.
-        C       is the vector of capacitances. The units are supossed to be F/m²
+        C       is the vector of capacitances. The units are supossed to be F/m². Do not mistake it with the species vector.
         psi_v   is the vector of electrostatic potentials. The units are supposed to be volts
         s       is the specific surface area
         a       area
         temp    is the temperature in Kelvins
         e       is the relative permittivity
         I       is the ionic strenght mol/m³
+        zel     is the background electrolyte value. It is needed for the PB analytical solution.
     """
     #  constant
     F = 96485.3328959                                   # C/mol
