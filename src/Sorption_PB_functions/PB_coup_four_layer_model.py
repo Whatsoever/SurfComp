@@ -8,9 +8,9 @@ Created on Fri Mar  1 11:08:29 2019
 from four_layer_model import four_layer_model
 import numpy as np
 import scipy as sp
+from bvp import solve_bvp
 
-
-def PB_and_fourlayermodel ():
+def PB_and_fourlayermodel (X_guess, log_k, A, T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, C_aq):
     """
         The following function tries to implement a specific coupling between the local chemistry given at two colloidal surface that interact between them through the Possion-Boltzman relationship.
         For the local chemistry a four layer model is used, based on the notation and methodology presented by Westall (1980). The fact that we use Westall (1980) formulation is important in order to know
@@ -22,12 +22,13 @@ def PB_and_fourlayermodel ():
     
     
     # scipy.optimize.fsolve(func, x0, args=(), fprime=None, full_output=0, col_deriv=0, xtol=1.49012e-08, maxfev=0, band=None, epsfcn=None, factor=100, diag=None)[source]¶
-    X = sp.optimize.fsolve(func_NR_PB_FLM, X_guess, args = (), fprime = Jacobian_NR_PB_FLM)
+    X = sp.optimize.fsolve(func_NR_PB_FLM, X_guess, args = ( A, log_k, T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, C_aq), fprime = Jacobian_NR_PB_FLM)
     #Speciation
-    C = log_k + A*np.log10(X)
+    log_C = log_k + A*np.log10(X)
+    C = 10**(log_C)
     return X, C
 
-def func_NR_PB_FLM():
+def func_NR_PB_FLM(X, A, log_k, T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, C_aq):
     """
         This function is supossed to be linked to the PB_and_fourlayermodel function.
         It just gave the evaluated vector of Y, for the Newton-Raphson procedure.
@@ -41,14 +42,13 @@ def func_NR_PB_FLM():
     # Update T - "Electrostatic parameters"
     psi_vS1 = [Boltzman_factor_2_psi(X[pos_psi0S1], temp), Boltzman_factor_2_psi(X[pos_psialphaS1], temp), Boltzman_factor_2_psi(X[pos_psibetaS1], temp), X[pos_psigammaS1]]  # [e^((-F〖ψ_0〗_s1)/Rtemp) ],[e^((-F〖ψ_α〗_s1)/Rtemp) ],[e^((-F〖ψ_β〗_s1)/Rtemp) ],〖ψ_d〗_s1
     psi_vS2 = [Boltzman_factor_2_psi(X[pos_psi0S2], temp), Boltzman_factor_2_psi(X[pos_psialphaS2], temp), Boltzman_factor_2_psi(X[pos_psibetaS2], temp), X[pos_psigammaS2]]
-    C_aq = C[idx_Aq]
     #I = Calculate_ionic_strength(Z, C_aq)
-    T = Update_T_PB_FLM(T, s,e, I, temp, a, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, C_aq)
+    T = Update_T_PB_FLM(T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, C_aq)
     # Calculation of Y
     Y= np.matmul(A.transpose(),C)-T
     return Y
 
-def Update_T_PB_FLM(T, s,e, I, temp, a, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, C_aq):
+def Update_T_PB_FLM(T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, C_aq):
     """
         This equation is linked to func_NR_PB_FLM. It updates the values of T for the electrostatic parameters.
         CapS1       is the vector of capacitances for surface 1. The units are supossed to be F/m². 
@@ -77,23 +77,23 @@ def Update_T_PB_FLM(T, s,e, I, temp, a, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0
     
     # Surface 1
     sigma_0_S1 = CapS1[0]*(psi_vS1[0]-psi_vS1[1])
-    sigma_alpha_S1= -sigma_0 + CapS1[1]*(psi_vS1[1]-psi_vS1[2])
-    sigma_beta_S1 = -sigma_0-sigma_alpha+CapS1[2]*(psi_vS1[2]-psi_vS1[3])
-    sigma_gamma_S1 = -sigma_0 - sigma_alpha - sigma_beta
+    sigma_alpha_S1= -sigma_0_S1 + CapS1[1]*(psi_vS1[1]-psi_vS1[2])
+    sigma_beta_S1 = -sigma_0_S1-sigma_alpha_S1+CapS1[2]*(psi_vS1[2]-psi_vS1[3])
+    sigma_gamma_S1 = -sigma_0_S1 - sigma_alpha_S1 - sigma_beta_S1
     #Surface 2
     sigma_0_S2 = CapS2[0]*(psi_vS2[0]-psi_vS2[1])
-    sigma_alpha_S2 = -sigma_0 + CapS2[1]*(psi_vS2[1]-psi_vS2[2])
-    sigma_beta_S2 = -sigma_0-sigma_alpha+CapS2[2]*(psi_vS2[2]-psi_vS2[3])
-    sigma_gamma_S2 = -sigma_0 - sigma_alpha - sigma_beta
+    sigma_alpha_S2 = -sigma_0_S2 + CapS2[1]*(psi_vS2[1]-psi_vS2[2])
+    sigma_beta_S2 = -sigma_0_S2-sigma_alpha_S2+CapS2[2]*(psi_vS2[2]-psi_vS2[3])
+    sigma_gamma_S2 = -sigma_0_S2 - sigma_alpha_S2 - sigma_beta_S2
     
     # T
-    T_0S1 = ((s*a)/F)*sigma_0_S1;                    # units mol/L or mol/kg
-    T_alphaS1 = ((s*a)/F)*sigma_alpha_S1;            # units mol/L or mol/kg
-    T_betaS1 = ((s*a)/F)*sigma_beta_S1;              # units mol/L or mol/kg
+    T_0S1 = ((sS1*aS1)/F)*sigma_0_S1;                    # units mol/L or mol/kg
+    T_alphaS1 = ((sS1*aS1)/F)*sigma_alpha_S1;            # units mol/L or mol/kg
+    T_betaS1 = ((sS1*aS1)/F)*sigma_beta_S1;              # units mol/L or mol/kg
     
-    T_0S2 = ((s*a)/F)*sigma_0_S2;                    # units mol/L or mol/kg
-    T_alphaS2 = ((s*a)/F)*sigma_alpha_S2;            # units mol/L or mol/kg
-    T_betaS2 = ((s*a)/F)*sigma_beta_S2;              # units mol/L or mol/kg
+    T_0S2 = ((sS2*aS2)/F)*sigma_0_S2;                    # units mol/L or mol/kg
+    T_alphaS2 = ((sS2*aS2)/F)*sigma_alpha_S2;            # units mol/L or mol/kg
+    T_betaS2 = ((sS2*aS2)/F)*sigma_beta_S2;              # units mol/L or mol/kg
     #!! Important!! Here starts the PB part
     ew = eo*e
     #
@@ -102,6 +102,7 @@ def Update_T_PB_FLM(T, s,e, I, temp, a, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0
     A =6.02214e23 * 1000/ew                # a prefactor = Avogadro * 1000 /ew
     kbt = 1.38064852e-23 *temp # kb (J/K) * T in K
     y0[0,0] = psi_vS1[3]
+    'I think that  y0[1,0] and y0[1,-1] are not necessary to solve the problem, I would say that its values do not have implications. Although I am not 100% sure.'
     y0[1,0] = -sigma_gamma_S1/ew           # The negative value that I am given here is extremely arbitrary I am not sure why. IT MUST BE DISCUSSED
     # y0[1,0] = dpsi_d                dpsi_d = -(sig_0 + sig_b + sig_d)/ew   # electric field at diffuse layer, x>d
     y0[0,-1]= psi_vS2[3]
@@ -131,83 +132,141 @@ def Update_T_PB_FLM(T, s,e, I, temp, a, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0
     T[pos_psigammaS2] = T_gammadS2
     return T
 
-def fun_PB(x, y, args):
-    Q = args[0]
-    C = args[1]
-    A = args[2]
-    kbt = args[3]
-    arg1 = num.zeros((x.size))
-    for i in range(len(Q)):
-        arg1 += Q[i]*C[i]*num.exp(-Q[i]*y[0]/kbt)
-    arg1 = -A*arg1
-    return num.vstack((y[1] , arg1))
-
-def bc_PB(ya, yb, args):
-    y0 = args[4]
-    return num.array([ya[0]-y0[0,0] , yb[0]-y0[0,-1]])
-
-
-
-def Jacobian_NR_PB_FLM():
-    
-    
-    
-    def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma):
-    '''
-        This function should give the Jacobian. Here The jacobian is calculated as Westall (1980), except the electrostatic terms that are slightly different.
-        The reason is because there seems to be some typos in Westall paper.
-    '''
+def Jacobian_NR_PB_FLM(X, A, log_k, T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, C_aq):
     #  constant
     F = 96485.3328959                                   # C/mol [Faraday constant]
     R =  8.314472                                       # J/(K*mol) [universal constant gas]
+    elec_charge = 1.60217662e-19 #electron charge in C
     eo = 8.854187871e-12                                # Farrads = F/m   - permittivity in vaccuum
     # Speciation - mass action law
     log_C = log_k + A*np.log10(X)
     # transf
     C = 10**(log_C)
-    C_aq = C[idx_Aq]
-    I = Calculate_ionic_strength(Z, C_aq)
-    # instantiate Jacobian
-    length_X = X.size
-    Z = np.zeros((length_X,length_X))
     # First part is the common of the Jacbian derivation
+    length_X = X.size
     for i in range(0, length_X):
             for j in range(0, length_X):
                 Z[i,j]= np.matmul(np.multiply(A[:,i], A[:,j]), (C/X[j]))
+    
+
     # Now the electrostatic part must be modified, one question hang on the air:
     # Should we check that the electrostatic part is as we expected?
-    sa_F2 = (s*a)/(F*F)
+    sa_F2_S1 = (sS1*aS1)/(F*F)
+    sa_F2_S2 = (sS2*aS2)/(F*F)
     #### plane 0
-    C1_sa_F2_RT = sa_F2*Capacitances[0]*R*temp
+    C1_sa_F2_RT_S1 = sa_F2_S1*CapS1[0]*R*temp
+    C1_sa_F2_RT_S2 = sa_F2_S2*CapS2[0]*R*temp
     # Assigning in Jacobian (plane 0)
-    Z[pos_psi0,pos_psi0]=Z[pos_psi0,pos_psi0] + C1_sa_F2_RT/X[pos_psi0]
-    Z[pos_psi0,pos_psialpha]=Z[pos_psi0, pos_psialpha] - C1_sa_F2_RT/X[pos_psialpha]
-    
+    #S1
+    Z[pos_psi0S1,pos_psi0S1]=Z[pos_psi0S1,pos_psi0S1] + C1_sa_F2_RT_S1/X[pos_psi0S1]
+    Z[pos_psi0S1,pos_psialphaS1]=Z[pos_psi0S1, pos_psialphaS1] - C1_sa_F2_RT_S1/X[pos_psialphaS1]    
+    #S2        
+    Z[pos_psi0S2,pos_psi0S2]=Z[pos_psi0S2,pos_psi0S2] + C1_sa_F2_RT_S2/X[pos_psi0S2]
+    Z[pos_psi0S2,pos_psialphaS2]=Z[pos_psi0S2, pos_psialphaS2] - C1_sa_F2_RT_S2/X[pos_psialphaS2]    
+                
     #### plane alpha
-    C1C2_sa_F2_RT = sa_F2*R*temp*(Capacitances[0]+Capacitances[1])
-    C2_sa_F2_RT = sa_F2*Capacitances[1]*R*temp
+    C1C2_sa_F2_RT_S1 = sa_F2_S1*R*temp*(CapS1[0]+CapS1[1])
+    C2_sa_F2_RT_S1 = sa_F2_S1*CapS1[1]*R*temp
+    C1C2_sa_F2_RT_S2 = sa_F2_S2*R*temp*(CapS2[0]+CapS2[1])
+    C2_sa_F2_RT_S2 = sa_F2_S2*CapS2[1]*R*temp
     # Assigning in Jacobian (plane alpha)
-    Z[pos_psialpha,pos_psi0]=Z[pos_psialpha, pos_psi0] - C1_sa_F2_RT/X[pos_psi0]
-    Z[pos_psialpha,pos_psialpha]=Z[pos_psialpha, pos_psialpha] + C1C2_sa_F2_RT/X[pos_psialpha]
-    Z[pos_psialpha,pos_psibeta]= Z[pos_psialpha,pos_psibeta] - C2_sa_F2_RT/X[pos_psibeta]
-    
+    #S1
+    Z[pos_psialphaS1,pos_psi0S1]=Z[pos_psialphaS1, pos_psi0S1] - C1_sa_F2_RT_S1/X[pos_psi0S1]
+    Z[pos_psialphaS1,pos_psialphaS1]=Z[pos_psialphaS1, pos_psialphaS1] + C1C2_sa_F2_RT_S1/X[pos_psialphaS1]
+    Z[pos_psialphaS1,pos_psibetaS1]= Z[pos_psialphaS1,pos_psibetaS1] - C2_sa_F2_RT_S1/X[pos_psibetaS1] 
+    #S2           
+    Z[pos_psialphaS2,pos_psi0S2]=Z[pos_psialphaS2, pos_psi0S2] - C1_sa_F2_RT_S2/X[pos_psi0S2]
+    Z[pos_psialphaS2,pos_psialphaS2]=Z[pos_psialphaS2, pos_psialphaS2] + C1C2_sa_F2_RT_S2/X[pos_psialphaS2]
+    Z[pos_psialphaS2,pos_psibetaS2]= Z[pos_psialphaS2,pos_psibetaS2] - C2_sa_F2_RT_S2/X[pos_psibetaS2]    
+
     #### plane beta
-    C3C2_sa_F2_RT = sa_F2*R*temp*(Capacitances[1]+Capacitances[2])
-    C3_sa_F2_RT = sa_F2*Capacitances[2]*R*temp
+    C3C2_sa_F2_RT_S1 = sa_F2_S1*R*temp*(CapS1[1]+CapS1[2])
+    C3_sa_F2_RT_S1 = sa_F2_S1*CapS1[2]*R*temp
+    C3C2_sa_F2_RT_S2 = sa_F2_S2*R*temp*(CapS2[1]+CapS2[2])
+    C3_sa_F2_RT_S2 = sa_F2_S2*CapS2[2]*R*temp
     # Assigning in Jacobian (plane beta)
-    Z[pos_psibeta,pos_psialpha] = Z[pos_psibeta,pos_psialpha] - C2_sa_F2_RT/X[pos_psialpha]
-    Z[pos_psibeta, pos_psibeta] = Z[pos_psibeta, pos_psibeta] + C3C2_sa_F2_RT/X[pos_psibeta]
-    Z[pos_psibeta, pos_psigamma] = Z[pos_psibeta, pos_psigamma] - C3_sa_F2_RT/X[pos_psigamma]
+    #S1
+    Z[pos_psibetaS1, pos_psialphaS1] = Z[pos_psibetaS1, pos_psialphaS1] - C2_sa_F2_RT_S1/X[pos_psialphaS1]
+    Z[pos_psibetaS1, pos_psibetaS1] = Z[pos_psibetaS1, pos_psibetaS1] + C3C2_sa_F2_RT_S1/X[pos_psibetaS1]
+    Z[pos_psibetaS1, pos_psigammaS1] = Z[pos_psibetaS1, pos_psigammaS1] - C3_sa_F2_RT_S1/X[pos_psigammaS1]
+    #S2
+    Z[pos_psibetaS2, pos_psialphaS2] = Z[pos_psibetaS2, pos_psialphaS2] - C2_sa_F2_RT_S2/X[pos_psialphaS2]
+    Z[pos_psibetaS2, pos_psibetaS2] = Z[pos_psibetaS2, pos_psibetaS2] + C3C2_sa_F2_RT_S2/X[pos_psibetaS2]
+    Z[pos_psibetaS2, pos_psigammaS2] = Z[pos_psibetaS2, pos_psigammaS2] - C3_sa_F2_RT_S2/X[pos_psigammaS2]               
+                
+    #### plane gamma [diffusive plane]      
     
-    #### plane gamma [diffusive plane]
-    gb_term = (R*temp*Capacitances[2])/F
-    # PB solution of diffusive layer
-    # F/2RT (8RTε_o εI)^(1/2) cosh((Fψ_d)/2RT)
-    dif_term = ((zel*F)/(2*R*temp))*np.sqrt(8*R*temp*eo*e*I)*np.cosh((zel*Boltzman_factor_2_psi(X[pos_psigamma], temp)*F)/(2*R*temp))
-    dif_term = dif_term+Capacitances[2]
-    dif_term = dif_term*((-R*temp)/F)
-    # Assigning in Jacobian (plane beta)
-    Z[pos_psigamma,pos_psibeta] = Z[pos_psigamma, pos_psibeta] - gb_term/X[pos_psibeta]
-    Z[pos_psigamma, pos_psigamma] = Z[pos_psigamma, pos_psigamma] +  dif_term/X[pos_psigamma] #Z[pos_bgamma, pos_bgamma] should be equal to  0
-    # finally just return Z
+    Z[pos_psigammaS1,pos_psibetaS1] = Z[pos_psigammaS1, pos_psibetaS1] - CapS1[2]
+    Z[pos_psigammaS2,pos_psibetaS2] = Z[pos_psigammaS2, pos_psibetaS2] - CapS2[2]
+    #
+    ew = eo*e
+    #
+    Q = Z*elec_charge                                         # Q is the charve of the aqueous elements times the electron charge 
+    Cb = C_aq
+    A =6.02214e23 * 1000/ew                # a prefactor = Avogadro * 1000 /ew
+    kbt = 1.38064852e-23 *temp # kb (J/K) * T in K
+    delta_psi = 0.001
+    
+    
+    y0 = np.zeros((2, x.size))
+    y0[0,0] = X[pos_psigammaS1]
+    'I think that  y0[1,0] and y0[1,-1] are not necessary to solve the problem, I would say that its values do not have implications. Although I am not 100% sure.'
+    y0[1,0] = -(CapS1[2]*(X[pos_psigammaS1]-Boltzman_factor_2_psi(X[pos_psibetaS1], temp)))/ew           # The negative value that I am given here is extremely arbitrary I am not sure why. IT MUST BE DISCUSSED
+    # y0[1,0] = dpsi_d                dpsi_d = -(sig_0 + sig_b + sig_d)/ew   # electric field at diffuse layer, x>d    
+    y0[0,-1]= X[pos_psigammaS2]
+    y0[1,-1]= (CapS2[2]*(X[pos_psigammaS2]-Boltzman_factor_2_psi(X[pos_psibetaS2], temp)))/ew
+    
+    y1 = np.zeros((2, x.size))
+    y1[0,0] = X[pos_psigammaS1]*delta_psi
+    y1[1,0] = -(CapS1[2]*((X[pos_psigammaS1]*delta_psi)-Boltzman_factor_2_psi(X[pos_psibetaS1], temp)))/ew
+    y1[0,-1]= X[pos_psigammaS2]
+    y1[1,-1]= (CapS2[2]*(X[pos_psigammaS2]-Boltzman_factor_2_psi(X[pos_psibetaS2], temp)))/ew
+    
+    y2 = np.zeros((2, x.size))
+    y2[0,0] = X[pos_psigammaS1]
+    y2[1,0] = -(CapS1[2]*((X[pos_psigammaS1]*delta_psi)-Boltzman_factor_2_psi(X[pos_psibetaS1], temp)))/ew
+    y2[0,-1]= X[pos_psigammaS2]*delta_psi
+    y2[1,-1]= (CapS2[2]*((X[pos_psigammaS2]*delta_psi)-Boltzman_factor_2_psi(X[pos_psibetaS2], temp)))/ew
+    
+    args0=[Q,Cb,A,kbt,y0]
+    args1=[Q,Cb,A,kbt,y1]
+    args2=[Q,Cb,A,kbt,y2]
+    #PB solving  
+    result0 = solve_bvp(fun_PB, bc_PB, x, y0, tol = 1e-8, args = args0)
+    result1 = solve_bvp(fun_PB, bc_PB, x, y1, tol = 1e-8, args = args1)
+    result2 = solve_bvp(fun_PB, bc_PB, x, y2, tol = 1e-8, args = args2)
+    
+    d_sigma_d_psi_S1= (ew/(delta_psi*X[pos_psigammaS1]))*(result1.y[1,0]-result0.y[1, 0])
+    d_sigma_d_psi_S2= (ew/(delta_psi*X[pos_psigammaS2]))*(result2.y[1,-1]-result0.y[1, -1])
+    
+    Z[pos_psigammaS1, pos_psigammaS1] = CapS1[2] + d_sigma_d_psi_S1
+    Z[pos_psigammaS2, pos_psigammaS2] = CapS2[2] + d_sigma_d_psi_S2
+    
     return Z
+
+def fun_PB(x, y, args):
+    Q = args[0]
+    C = args[1]
+    A = args[2]
+    kbt = args[3]
+    arg1 = np.zeros((x.size))
+    for i in range(len(Q)):
+        arg1 += Q[i]*C[i]*np.exp(-Q[i]*y[0]/kbt)
+    arg1 = -A*arg1
+    return np.vstack((y[1] , arg1))
+
+def bc_PB(ya, yb, args):
+    y0 = args[4]
+    return np.array([ya[0]-y0[0,0] , yb[0]-y0[0,-1]])
+
+def Boltzman_factor_2_psi (x,temp):
+    '''
+        Transforms the equation from Xb = exp(-psi*F/RT) to psi = -ln(Xb)RT/F
+        from Boltzman factor to electrostatic potential
+        The units of "temp" (short for temperature) should be Kelvin
+    '''
+    R =  8.314472                                       # J/(K*mol)
+    F = 96485.3328959                                   # C/mol                                    
+    D = R*temp
+    psi = - np.log(x)*(D/F)
+    return psi
