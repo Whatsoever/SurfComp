@@ -56,7 +56,7 @@ def Update_T_PB_FLM(T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS
         psi_vS1   is the vector of electrostatic potentials for the surface1. The units are supposed to be volts
         psi_vS2   is the vector of electrostatic potentials for the surface2. The units are supposed to be volts
         s       is the specific surface area
-        a       area
+        a       concentration of suspended solid
         temp    is the temperature in Kelvins
         e       is the relative permittivity
         I       is the ionic strenght mol/m³
