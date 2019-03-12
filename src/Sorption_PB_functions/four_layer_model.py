@@ -20,14 +20,19 @@ def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0
     """
     -The implementation of these algorithm is based on Westall (1980), but slightly modified in order to allow a 4th electrostatic layer.
         Arguments:
+            - T             A vector needed for creating the residual function for the Newthon-Raphson. The vector has the same size of X_guess and contains values like the total number of moles or mol/L of an aquoeus component
             - X_guess       A vector containing the initial guesses of the primary aqueous species, primary sorption species, electrostatic species
             - A             A matrix containing the stoichiometric values of the mass balance parameters
-            - log_k         A vector of log(Konstant equilibrium)
+            - log_k         A vector of log(Konstant equilibrium). Primary species of aquoues and sorption have a log_k=0
             - idx_Aq        An index vector with the different aqueous species position. It must coincide with the rows of "A".
             - Z             The vector of charge of the different ion. The order is determine by the rows of "A" for aqueous species. That means that it is link to idx_Aq somehow.
             - pos_boltz0, pos_boltzalpha, pos_boltzbeta, pos_boltzgamma  This is basically the position of the boltzman factor for the different planes (gamma == diffusive)
+            - s             is the specific surface area
+            - a             concentration of suspended solid
+            - e             relative permittivity
+            - Capacitances  [C1, C2, C3] 
         Outputs: the outputs right now are:
-                        - C the vector of species concentrations (aqueous and surface species). The order of the species will depend on the given matrix A, so it is user dependent.
+                        - C the vector of species concentrations (aqueous and surface species, not electrostatic). The order of the species will depend on the given matrix A, so it is user dependent.
                         - The vector X of primary unknowns. The value of the primary species of aqueous and surface species should be equivalent to the C vector. Here we can find the values
                           of the boltzman factors, which are related to psi values.
         Preconditions: 
@@ -69,7 +74,7 @@ def func_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, po
     psi_v = [Boltzman_factor_2_psi(X[pos_psi0], temp), Boltzman_factor_2_psi(X[pos_psialpha], temp), Boltzman_factor_2_psi(X[pos_psibeta], temp), Boltzman_factor_2_psi(X[pos_psigamma], temp)]
     C_aq = C[idx_Aq]
     I = Calculate_ionic_strength(Z, C_aq)
-    T = Update_T_FLM(T, s, e, I, temp, a, Capacitances, psi_v, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma)
+    T = Update_T_FLM(T, s, e, I, temp, a, Capacitances, psi_v, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma, C_aq)
     # Calculation of Y
     Y= np.matmul(A.transpose(),C)-T
     return Y
@@ -97,7 +102,7 @@ def Calculate_ionic_strength(Z,C):
     I = I/2
     return I
 
-def Update_T_FLM(T, s,e, I, temp, a, C, psi_v,zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma):
+def Update_T_FLM(T, s,e, I, temp, a, C, psi_v,zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma, C_aq):
     """
         This equation is linked to func_NR_FLM. It updates the values of T for the electrostatic parameters.
         C       is the vector of capacitances. The units are supossed to be F/m². Do not mistake it with the species vector.
@@ -113,6 +118,9 @@ def Update_T_FLM(T, s,e, I, temp, a, C, psi_v,zel, pos_psi0, pos_psialpha, pos_p
     F = 96485.3328959                                   # C/mol
     R =  8.314472                                       # J/(K*mol)
     eo = 8.854187871e-12                                # Farrads = F/m   - permittivity in vaccuum
+    e  = 1.602176620898e-19                             # C
+    kb = 1.38064852e-23                                 # J/K other units --> kb=8,6173303e-5  eV/K
+    Na = 6.022140857e23                                 # 1/mol
     # Update of T
     # T = (sa/F)*sigma
     # sigma = C*(psi-psi_0) <-- The sigma depends on the plane
@@ -127,7 +135,23 @@ def Update_T_FLM(T, s,e, I, temp, a, C, psi_v,zel, pos_psi0, pos_psialpha, pos_p
     sigma_beta = -sigma_0-sigma_alpha+C[2]*(psi_v[2]-psi_v[3])
     sigma_gamma = -sigma_0 - sigma_alpha - sigma_beta
     
-    sigma_d = np.sqrt(8*R*temp*eo*e*I)*np.sinh((zel*psi_v[3]*F)/(2*R*temp))
+    # Now the diffusive layer surface potential (sigma_d) is calculated. Due to electroneutrality conditions (Gaus Boundary electrostatic) sigma_gamma = sigma_d
+    # The equation for calculatin the surface potential is equation (46) of Chapter 3 "Diffuse double layer equations for use in surface complexation models: Approximations and limits" Hiroyuki Ohshima
+    # The book is called Surface Complexation Models of Adsorption and author is Johannes Lützenkirchen
+    
+    #sigma_d = np.sqrt(8*R*temp*eo*e*I)*np.sinh((zel*psi_v[3]*F)/(2*R*temp))
+    
+    # Calculating Debye-Huckel paramerter (https://de.wikipedia.org/wiki/Debye-H%C3%BCckel-Theorie)
+    k = F*np.sqrt((2*I*1000)/(e*eo*R*temp))
+    yd= (psi_v[3]*F)/(R*temp)
+    if yd <0:
+        sign=-1
+    else:
+        sign=1
+    ni = C_aq*Na*1000
+    partA = np.sum(np.multiply(ni,(np.exp(-yd*Z)-1)))
+    partB = np.sum(np.multiply(ni,np.multiply(Z,Z)))
+    sigma_d = -sign*k*np.sqrt(partA/partB)
     
     # T
     T_0 = ((s*a)/F)*sigma_0;                    # units mol/L or mol/kg
