@@ -10,7 +10,7 @@ import numpy as np
 import scipy as sp
 from bvp import solve_bvp
 
-def PB_and_fourlayermodel (X_guess, log_k, A, T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, C_aq):
+def PB_and_fourlayermodel (X_guess, log_k, A, T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, idx_Aq):
     """
         The following function tries to implement a specific coupling between the local chemistry given at two colloidal surface that interact between them through the Possion-Boltzman relationship.
         For the local chemistry a four layer model is used, based on the notation and methodology presented by Westall (1980). The fact that we use Westall (1980) formulation is important in order to know
@@ -22,13 +22,13 @@ def PB_and_fourlayermodel (X_guess, log_k, A, T, sS1, sS2,e, temp, aS1, aS2, Cap
     
     
     # scipy.optimize.fsolve(func, x0, args=(), fprime=None, full_output=0, col_deriv=0, xtol=1.49012e-08, maxfev=0, band=None, epsfcn=None, factor=100, diag=None)[source]¶
-    X = sp.optimize.fsolve(func_NR_PB_FLM, X_guess, args = ( A, log_k, T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, C_aq), fprime = Jacobian_NR_PB_FLM)
+    X = sp.optimize.fsolve(func_NR_PB_FLM, X_guess, args = ( A, log_k, T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, idx_Aq), fprime = Jacobian_NR_PB_FLM)
     #Speciation
     log_C = log_k + A*np.log10(X)
     C = 10**(log_C)
     return X, C
 
-def func_NR_PB_FLM(X, A, log_k, T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, C_aq):
+def func_NR_PB_FLM(X, A, log_k, T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, idx_Aq):
     """
         This function is supossed to be linked to the PB_and_fourlayermodel function.
         It just gave the evaluated vector of Y, for the Newton-Raphson procedure.
@@ -43,6 +43,7 @@ def func_NR_PB_FLM(X, A, log_k, T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi
     psi_vS1 = [Boltzman_factor_2_psi(X[pos_psi0S1], temp), Boltzman_factor_2_psi(X[pos_psialphaS1], temp), Boltzman_factor_2_psi(X[pos_psibetaS1], temp), X[pos_psigammaS1]]  # [e^((-F〖ψ_0〗_s1)/Rtemp) ],[e^((-F〖ψ_α〗_s1)/Rtemp) ],[e^((-F〖ψ_β〗_s1)/Rtemp) ],〖ψ_d〗_s1
     psi_vS2 = [Boltzman_factor_2_psi(X[pos_psi0S2], temp), Boltzman_factor_2_psi(X[pos_psialphaS2], temp), Boltzman_factor_2_psi(X[pos_psibetaS2], temp), X[pos_psigammaS2]]
     #I = Calculate_ionic_strength(Z, C_aq)
+    C_aq = C[idx_Aq]
     T = Update_T_PB_FLM(T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS2, pos_psi0S1, pos_psialphaS1, pos_psibetaS1, pos_psigammaS1,pos_psi0S2, pos_psialphaS2, pos_psibetaS2, pos_psigammaS2, x, Z, C_aq)
     # Calculation of Y
     Y= np.matmul(A.transpose(),C)-T
@@ -66,6 +67,7 @@ def Update_T_PB_FLM(T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS
     R =  8.314472                                       # J/(K*mol)
     elec_charge = 1.60217662e-19 #electron charge in C
     eo = 8.854187871e-12                                # Farrads = F/m   - permittivity in vaccuum
+    Na = 6.02214e23                                     # 1/mol
     # Update of T
     # T = (sa/F)*sigma
     # sigma = C*(psi-psi_0) <-- The sigma depends on the plane
@@ -99,7 +101,7 @@ def Update_T_PB_FLM(T, sS1, sS2,e, temp, aS1, aS2, CapS1, CapS2, psi_vS1, psi_vS
     #
     Q = Z*elec_charge                                         # Q is the charve of the aqueous elements times the electron charge 
     C = C_aq
-    A =6.02214e23 * 1000/ew                # a prefactor = Avogadro * 1000 /ew
+    A =Na* 1000/ew                # a prefactor = Avogadro * 1000 /ew
     kbt = 1.38064852e-23 *temp # kb (J/K) * T in K
     y0[0,0] = psi_vS1[3]
     'I think that  y0[1,0] and y0[1,-1] are not necessary to solve the problem, I would say that its values do not have implications. Although I am not 100% sure.'
