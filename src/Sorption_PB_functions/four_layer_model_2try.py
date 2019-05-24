@@ -1,22 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Feb 22 15:28:36 2019
+Created on Fri May 24 15:17:13 2019
 
-@author: 
+@author: DaniJ
 """
 
-
+'''
+Firt version of the four layer model seem to not work because the appeareance of negative values of the poisson boltzman factor. The next implementation might have the same problems, but the later one,
+was using a modified Maxwell method. Here, we use a rough Newton-Rapshon and probably will be adepted in the future.
+'''
 import numpy as np
-#import scipy as sp
-from scipy.optimize import fsolve
+from scipy import linalg
 
-"""
-Implementation of the fourth layer model with just one surface. In a function manner,
-allowing its utilization in other codes and this code.
-"""
-
-
-def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp, s, a, e, Capacitances, zel=1):
+def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp, s, a, e, Capacitances, zel=1, tolerance = 1e-6, max_iterations = 100):
     """
     -The implementation of these algorithm is based on Westall (1980), but slightly modified in order to allow a 4th electrostatic layer.
         Arguments:
@@ -54,14 +50,33 @@ def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0
     # Speciation
     #C_guess = log_k + A*log(X_guess)
 
-    # scipy.optimize.fsolve(func, x0, args=(), fprime=None, full_output=0, col_deriv=0, xtol=1.49012e-08, maxfev=0, band=None, epsfcn=None, factor=100, diag=None)[source]¶
-   # X = sp.optimize.fsolve(func_NR_FLM, X_guess, args = (A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma), fprime = Jacobian_NR_FLM)
-    X = fsolve(func_NR_FLM, X_guess, args = (A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma), fprime = Jacobian_NR_FLM)
+    # instantiation variables for loop
+    counter_iterations = 0
+    err = tolerance + 1
+    while err>tolerance and counter_iterations < max_iterations:
+        # Calculate Y
+        Y = func_NR_FLM (X_guess, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma)
+        # Calculate Z
+        J = Jacobian_NR_FLM (X_guess, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma)
+        # Calculating the diff, Delta_X
+        delta_X = linalg.solve(J,-Y)
+        # The error will be equal to the maximum increment
+        err = max(abs(delta_X))
+        # Relaxation factor borrow from Craig M.Bethke to avoid negative values
+        max_1 = 1
+        max_2 =np.amax(-2*np.multiply(delta_X, 1/X_guess))
+        Max_f = np.amax([max_1, max_2])
+        Del_mul = 1/Max_f
+        X_guess=X_guess + Del_mul*delta_X
+        counter_iterations += 1
+    if counter_iterations >= max_iterations:
+            raise ValueError('Max number of iterations surpassed.') 
     # Speciation - mass action law
-    log_C = log_k + np.matmul(A,np.log10(X))
+    log_C = log_k + np.matmul(A,np.log10(X_guess))
     # transf
     C = 10**(log_C)
-    return X, C
+    return X_guess, C
+    
 
 def func_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma):
     """
@@ -81,7 +96,6 @@ def func_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, po
     T = Update_T_FLM(T, s, e, I, temp, a, Z,Capacitances, psi_v, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma, C_aq)
     # Calculation of Y
     Y= np.matmul(A.transpose(),C)-T
-    print(Y)
     return Y
 
 def Boltzman_factor_2_psi (x,temp):
@@ -235,4 +249,3 @@ def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel
     Z[pos_psigamma, pos_psigamma] = Z[pos_psigamma, pos_psigamma] +  dif_term/X[pos_psigamma] #Z[pos_bgamma, pos_bgamma] should be equal to  0
     # finally just return Z
     return Z
-

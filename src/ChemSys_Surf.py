@@ -1352,6 +1352,7 @@ class ChemSys_Surf (Database_SC):
                 T_0 = charge_surface_0*D
                 T_b = charge_surface_b*D
                 T_d = charge_surface_d*D
+               
                 # In T_d, it is assigned Y_d equation 14 from Westall
                 pos_C = self.length_aq_pri_sp+self.length_sorpt_pri_sp+self.length_names_elec_sorpt
                 C_aq = np.concatenate((C[:self.length_aq_pri_sp], C[pos_C : (pos_C + self.length_aq_sec_sp)]))
@@ -1454,7 +1455,7 @@ class ChemSys_Surf (Database_SC):
                 F_d = (B/2)*np.cosh(in_cosh)*(1/C[pos_unknown_vector+2])
                 
                 Z[pos_unknown_vector + 2,pos_unknown_vector + 2] = F_d + (self.list_sorpt_pri_sp[i].C2*F)*(D1/D4)
-                
+                #Z[pos_unknown_vector + 2,pos_unknown_vector + 2] = F_d + self.list_sorpt_pri_sp[i].C2
                 pos_unknown_vector +=3
                 
         return Z

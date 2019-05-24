@@ -1,0 +1,18 @@
+Solution
+# Concentrations which are supposed to be mol/L
+H2O 	55.5555556		# Maybe define in other form or even not define, must be discussed --> Since Craig impose already this concentration value
+H+	2.5763e-08		# Actually pH = -log(ah+),  so if pH is given no H+ need, and also what would be given would be ah, not concentration of the basis, must be discussed
+				# Phreeqc does charge balance to pH = 7.589 --> approx. 2.5763e-08 mol/L
+Na+	1e-3
+Cl-	1e-3
+Pb+2	1e-4
+SO4-2	1e-4
+
+Sorption
+# Name of the primary surface ('Surface_component')	# mols or (mols/L) T_solid 	# Specific_surface_area [m^2/g]		# grams [g]/ solid concentration [g/l]
+# Units must still be decided or be assured by the user that they have sense
+Hfo_sOH  						0.005   				600. 					1
+-type DLM
+Hfo_wOH							0.2					600					1
+-type	related		Hfo_sOH 				
+
