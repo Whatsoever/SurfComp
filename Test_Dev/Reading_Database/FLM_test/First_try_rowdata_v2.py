@@ -104,9 +104,9 @@ for i in range(0,len(T_H)):
         Array_X = np.vstack([Array_X, X])
         Array_C = np.vstack([Array_C, C])
 F.close()
-np.save('tol_vec',tolerance_vector)
-np.save('X_arr',Array_X)
-np.save('C_arr',Array_C)
+np.save('tol_vec_v2',tolerance_vector)
+np.save('X_arr_v2',Array_X)
+np.save('C_arr_v2',Array_C)
 
 
 #    try:
@@ -155,7 +155,7 @@ def get_colorline_thiscase(value):
     return col, tol
 
 
-plotElement(np.log10(T_H), np.log10(Array_X[:,0]), tolerance_vector, "H component (mol/L)", "H+ (mol/L)", "H+ vs. Hcomp")
+#plotElement(np.log10(T_H), np.log10(Array_X[:,0]), tolerance_vector, "H component (mol/L)", "H+ (mol/L)", "H+ vs. Hcomp")
 
 
 

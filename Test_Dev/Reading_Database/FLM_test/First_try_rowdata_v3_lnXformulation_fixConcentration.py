@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 def funky (T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance_B, idx_fix_species):
     try:
         #[X,C]=four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance = 1e-6, max_iterations = 100, debug_flm = None):
-        [X,C]=flm.four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, idx_fix_species, tolerance_B)
+        [X,C]=flm.four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, idx_fix_species, tolerance = tolerance_B,max_iterations = 200)
         T_error = tolerance_B
         F.write(str(tolerance_B))
         F.write("\n")
@@ -92,8 +92,8 @@ for i in range(0,len(T_H)):
         Array_X = np.vstack([Array_X, X])
         Array_C = np.vstack([Array_C, C])
 F.close()
-np.save('tol_vec',tolerance_vector)
-np.save('X_arr',Array_X)
-np.save('C_arr',Array_C)
+np.save('tol_vec_v3_lnX_fix',tolerance_vector)
+np.save('X_arr_v3_lnX_fix',Array_X)
+np.save('C_arr_v3_lnX_fix',Array_C)
 
 # The plotting is done by Data_plotting file

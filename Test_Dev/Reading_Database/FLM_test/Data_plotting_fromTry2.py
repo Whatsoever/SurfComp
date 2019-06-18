@@ -50,9 +50,9 @@ def get_colorline_thiscase(value):
 
 ################################# Param #############################################################
     
-tol_v = np.load('tol_vec.npy')
-Xarr = np.load('X_arr.npy')
-Carr = np.load('C_arr.npy')
+tol_v = np.load('tol_vec_v3_lnX_fix.npy')
+Xarr = np.load('X_arr_v3_lnX_fix.npy')
+Carr = np.load('C_arr_v3_lnX_fix.npy')
 T_H = np.linspace(-3,-11.2,42)
 T_H = 10**T_H
 
@@ -60,7 +60,7 @@ T_H = 10**T_H
 
 ################### calling functions ##########################################################
 
-#plotElement(-np.log10(T_H), -np.log10(Xarr[:,0]), tol_v, "-log[H] component (mol/L)", "-log[H+] (mol/L)", "H+ vs. Hcomp")
+plotElement(-np.log10(T_H), -np.log10(Xarr[:,0]), tol_v, "-log[H] component (mol/L)", "-log[H+] (mol/L)", "H+ vs. Hcomp")
 
 plotElement(-np.log10(T_H), np.log(Xarr[:,4]), tol_v, "-log[H] component (mol/L)", "Boltzmanf_psi0", "Bf_psi0 vs. Hcomp")
 plotElement(-np.log10(T_H), np.log(Xarr[:,5]), tol_v, "-log[H] component (mol/L)", "Boltzmanf_psiC", "Bf_psiC vs. Hcomp")

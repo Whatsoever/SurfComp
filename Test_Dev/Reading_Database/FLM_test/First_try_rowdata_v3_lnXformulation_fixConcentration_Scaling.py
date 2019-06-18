@@ -3,23 +3,23 @@
 Created on Tue Jun 11 09:45:17 2019
 """
 
-import four_layer_model_LNX as flm
+import four_layer_model_LNX_withFixSpeciesOption_Scaling as flm
 import numpy as np
 import scipy as sp
 
 from matplotlib import pyplot as plt
 
 
-def funky (T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance_B):
+def funky (T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance_B, idx_fix_species):
     try:
         #[X,C]=four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance = 1e-6, max_iterations = 100, debug_flm = None):
-        [X,C]=flm.four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance = tolerance_B,max_iterations = 200)
+        [X,C]=flm.four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, idx_fix_species=idx_fix_species, tolerance = tolerance_B,max_iterations = 200)
         T_error = tolerance_B
         F.write(str(tolerance_B))
         F.write("\n")
     except:
         tolerance_B = tolerance_B*10
-        [X,C, T_error]=funky (T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance_B)
+        [X,C, T_error]=funky (T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance_B, idx_fix_species)
         F.write(str(tolerance_B))
         F.write("\n")
     
@@ -28,7 +28,8 @@ def funky (T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_e
 T_H = np.linspace(-3,-11.2,42)
 T_H = 10**T_H
 
-
+#idx_fix_species=[0]
+idx_fix_species=None
 #X_guess = np.array([1e-3, 1e-3, 1e-3, 9.9635e-6, 8.7e-7, 2, 1.5, 2e-14])
 X_guess = np.array([1e-3, 1e-3, 1e-3, 9.9635e-6, 0.9, 0.8, 0.8, 0.7])
 lnX_guess = np.log(X_guess)
@@ -72,11 +73,9 @@ Array_C = []
 
 
 
-T=np.array([T_H[0], 1e-3, 1e-3, 9.9635e-6, 1, 1, 1, 1]) 
-#[X,C]=flm.four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector,  tolerance = 1e-8,max_iterations = 500)
+#T=np.array([T_H[0], 1e-3, 1e-3, 9.9635e-6, 1, 1, 1, 1]) 
 #[X,C]=flm.four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, max_iterations = 500)
-
-
+#[X,C]=flm.four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, max_iterations = 500)
 global F 
 F= open("T_efile_lnX.txt","w") 
 for i in range(0,len(T_H)):
@@ -85,7 +84,7 @@ for i in range(0,len(T_H)):
     X_guess = np.array([T_H[i], 1e-3, 1e-3, 9.9635e-6, 8.7e-7, 0.9, 0.8, 0.9])
     print(i)
     tolerance_B=1e-8
-    [X,C, T_e]= funky (T, lnX_guess, A, Z, ln_k, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance_B)
+    [X,C, T_e]= funky (T, lnX_guess, A, Z, ln_k, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance_B,idx_fix_species)
     tolerance_vector.append(T_e)
     if i == 0:
         Array_X = X
@@ -94,8 +93,8 @@ for i in range(0,len(T_H)):
         Array_X = np.vstack([Array_X, X])
         Array_C = np.vstack([Array_C, C])
 F.close()
-np.save('tol_vec_v3_lnX',tolerance_vector)
-np.save('X_arr_v3_lnX',Array_X)
-np.save('C_arr_v3_lnX',Array_C)
+np.save('tol_vec_v3_lnX_fix',tolerance_vector)
+np.save('X_arr_v3_lnX_fix',Array_X)
+np.save('C_arr_v3_lnX_fix',Array_C)
 
 # The plotting is done by Data_plotting file

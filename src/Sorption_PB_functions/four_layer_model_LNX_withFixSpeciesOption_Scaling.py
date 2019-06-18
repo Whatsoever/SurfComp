@@ -106,6 +106,22 @@ def calculate_ionicstrength(Z,C):
     I = np.matmul(np.multiply(Z,Z),C)
     I = I/2
     return I
+
+def diagonal_row(J):
+    num_rows = J.shape[0]
+    D = np.zeros((num_rows,num_rows))
+    for i in range(0,num_rows):
+        D[i,i]=np.sqrt(linalg.norm(J[i,:], np.inf))
+    return D
+
+def diagonal_col(J):
+    num_cols = J.shape[1]
+    D = np.zeros((num_cols,num_cols))
+    for i in range(0,num_cols):
+        D[i,i]=np.sqrt(linalg.norm(J[:,i], np.inf))
+    return D
+
+
 ####################### functions of basic functions ###############################
 'relative to residual function'
 def calculate_T (X, C, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, T, F,Z):
@@ -136,13 +152,15 @@ def calculate_T (X, C, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, 
     return T
 
 
-def calculate_residual_function(T,ln_X, ln_K, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z):
+def calculate_residual_function(T,ln_X, ln_K, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z, idx_fix_species = None):
     ln_C = mass_action_law (ln_X, ln_K, A)
     C = np.exp(ln_C)
     u = u_componentvector(A,C)
     X = np.exp(ln_X)
     T = calculate_T (X, C, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, T, F, Z) 
     Y = u-T
+    if idx_fix_species != None:
+        Y[idx_fix_species]=0
     return Y,T
 
 'relative to Jacobian'
@@ -185,18 +203,25 @@ def calculate_derivative_Td (C, R, T, F, Caq, Z, epsilon, epsilon_0, psi_d,s,a):
     j_d = DT_Dpsid*Dpsid_DlnXpsid*((s*a)/F)
     return j_d
 
-def calculate_jacobian_function(ln_X, ln_K, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z):
+def calculate_jacobian_function(ln_X, ln_K, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z,idx_fix_species = None):
+    length_X=len(ln_X)
     #
     [J,C] = calculate_J_classicalPart(ln_X, ln_K, A)
     Caq = C[idx_Aq]
     X = np.exp(ln_X)
     psi_d = boltzman_2_psi(X[pos_eb_d], R, temp, F)
     J = calculate_electrostatic_part (J, s, a, R, temp, C_vector, Caq, Z, F, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, epsilon, epsilon_0, psi_d)
+    # finally just return Z
+    if idx_fix_species != None:
+        for d in idx_fix_species:
+            v=np.zeros(length_X)
+            v[d]=1
+            J[d,:] = v
     return J
 
 ###################### SOLVING ####################################################
 
-def four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector,  tolerance = 1e-6, max_iterations = 100, debug_flm = None):
+def four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, scalingRC = True, idx_fix_species = None, tolerance = 1e-6, max_iterations = 100, debug_flm = None):
     '''
         - T --> The vector of Total values (The electrostatic values will be recalculated, so it does not matter what has been introduced)
         - lnX_guess --> The vector of primary vairables, it might be preconditioned in the future.
@@ -216,24 +241,35 @@ def four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_
     F = 96485.3328959                                   # C/mol
     R =  8.314472                                       # J/(K*mol)
     epsilon_0 = 8.854187871e-12                                # Farrads = F/m   - permittivity in vaccuum
+    if idx_fix_species != None:
+        lnX_guess [idx_fix_species] = np.log(T [idx_fix_species])
     ln_X = lnX_guess
-    X = np.exp(ln_X)
+    #X = np.exp(ln_X)
     # instantiation variables for loop
     counter_iterations = 0
     abs_err = tolerance + 1
     while abs_err>tolerance and counter_iterations < max_iterations:
         # Calculate Residual function
-        [Y,T] = calculate_residual_function(T,ln_X, ln_k, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z)
+        [Y,T] = calculate_residual_function(T,ln_X, ln_k, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z,idx_fix_species)
         # Calculate Jacobian Residual function
-        J = calculate_jacobian_function(ln_X, ln_k, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z)
+        J = calculate_jacobian_function(ln_X, ln_k, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z, idx_fix_species)
         #print(J)
         # Here the precondition techniques can be implemented
         # solve
-        delta_ln_X = linalg.solve(J,-Y)
+        if scalingRC == True:
+            D1 = diagonal_row(J)
+            D2 = diagonal_col(J)
+        
+            J_new = np.matmul(D1,np.matmul(J, D2))
+            Y_new = np.matmul(D1, Y)
+            delta_X_new = linalg.solve(J_new,-Y_new)
+            delta_ln_X = np.matmul(D2, delta_X_new)
+        else:
+            # Calculating the diff, Delta_X
+            delta_ln_X = linalg.solve(J,-Y)
         #print(delta_ln_X)
         #update X
         #X = X*np.exp(delta_ln_X)
-        #ln_X = np.log(X)
         ln_X = ln_X + delta_ln_X
         ln_C = mass_action_law (ln_X, ln_k, A)
         C = np.exp(ln_C)
@@ -241,7 +277,10 @@ def four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_
         
        # Vector_error = 
         # error
-        abs_err = max(abs(u-T))     
+        d = u-T
+        if idx_fix_species != None:
+            d[idx_fix_species] =0
+        abs_err = max(abs(d))     
         # Relaxation factor borrow from Craig M.Bethke to avoid negative values
         #max_1 = 1
         #max_2 =np.amax(-2*np.multiply(delta_ln_X, 1/ln_X))
@@ -251,7 +290,7 @@ def four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_
         #ln_X = ln_X+delta_ln_X
         
         counter_iterations += 1
-    if counter_iterations >= max_iterations or np.isnan(abs_err) :
+    if counter_iterations >= max_iterations or np.isnan(abs_err):
             raise ValueError('Max number of iterations surpassed.') 
     # things to do if goes well
     X = np.exp(ln_X)

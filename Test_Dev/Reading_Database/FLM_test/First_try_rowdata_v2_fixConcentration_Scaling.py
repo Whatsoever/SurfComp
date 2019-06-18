@@ -4,7 +4,7 @@ Created on Sun May 26 08:50:16 2019
 
 @author: DaniJ
 """
-import four_layer_model_2try_withFixSpeciesOption as flm
+import four_layer_model_2try_withFixSpeciesOption_Scaling as flm
 import numpy as np
 import scipy as sp
 
@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 
 def funky (T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp, s, a, e, Capacitances, tolerance_B, idx_fix_species):
     try:
-        [X,C]=flm.four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp, s, a, e, Capacitances, idx_fix_species, tolerance = tolerance_B,max_iterations = 200)
+        [X,C]=flm.four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp, s, a, e, Capacitances, idx_fix_species=idx_fix_species, tolerance = tolerance_B,max_iterations = 200)
         T_error = tolerance_B
         F.write(str(tolerance_B))
         F.write("\n")
@@ -28,7 +28,8 @@ def funky (T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta, 
 
 
 
-idx_fix_species=[0]
+#idx_fix_species=[0]
+idx_fix_species=None
 T_H = np.linspace(-3,-11.2,42)
 T_H = 10**T_H
 
