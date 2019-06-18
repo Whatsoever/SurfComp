@@ -1,0 +1,8 @@
+four_layer_model is not stable due to negative values that can arise in the internal solver of scipy.
+
+four_layer_model_2try is like four_layer_model but with a Newton-Raphson and underrelaxation technique
+although it is not extremely stable, it tend to converge, at least for the flm test, but the tolerance is not
+extremely high.
+
+four_layer_model_LNX is like four_layer_model but with a natural log formulation it seems 
+to be the more stable option. The tolerance of convergence is a factor of 10 or 100 decimal better.

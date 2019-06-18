@@ -16,12 +16,15 @@ import scipy as sp
 # The arguments of the four layer should follow a determine logical order, such as the one that can be found in the Westall(1980) paper.
 
 # T_transpose =[ T_H+ T_Cl- T_Na+ T_SOH T_σ_0 T_σ_c T_σ_A T_σ_d ] 
+T_H = np.linspace(-3,-11.2,42)
+T_H = 10**T_H
+#T_hydrogen = [10**-3, 1e-3.2]
 T=np.array([1e-3, 1e-3, 1e-3, 9.9635e-6, 1, 1, 1, 1])        # The values of T related to the electrostatic potentials are set to 0, it should not matter which values is given.
 
 # X_guess
 # X = [ H+ Cl- Na+ SOH (e^(-Fψ_0/RT) (e^(-Fψ_c/RT) (e^(-Fψ_A/RT) (e^(-Fψ_d/RT) ) ]
 #X_guess = np.array([1e-3, 1e-3, 1e-3, 9.9635e-6, 8.7e-7, 2, 1.5, 2e-14])
-X_guess = np.array([1e-3, 1e-3, 1e-3, 9.9635e-6, 8.7e-7, 0.9, 0.9, 0.9])
+X_guess = np.array([1e-6, 1e-6, 1e-6, 9.9635e-6, 8.7e-7, 0.9, 0.9, 0.9])
 
 # A in the columns we have X, and in the rows with have the concentration of vector C --> C=[ H^+ Cl- Na+ SOH SOH2+ SO- SOH_2Cl SONa ]
 # Remark A_transpose is the U or component matrix.
@@ -54,4 +57,4 @@ a=1         # g/l
 e = 78.45203739768931
 Capacitances=[1.05, 3.36, 0.27] 
 
-[X,C]=flm.four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp, s, a, e, Capacitances, zel=1, tolerance = 1e-7,max_iterations = 300)
+[X,C]=flm.four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp, s, a, e, Capacitances, zel=1, tolerance = 1e-6,max_iterations = 300)

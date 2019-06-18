@@ -12,12 +12,13 @@ was using a modified Maxwell method. Here, we use a rough Newton-Rapshon and pro
 import numpy as np
 from scipy import linalg
 
-def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp, s, a, e, Capacitances, zel=1, tolerance = 1e-6, max_iterations = 100):
+def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k,idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp, s, a, e, Capacitances, idx_fix_species = None, zel=1, tolerance = 1e-6, max_iterations = 100):
     """
     -The implementation of these algorithm is based on Westall (1980), but slightly modified in order to allow a 4th electrostatic layer.
         Arguments:
             - T             A vector needed for creating the residual function for the Newthon-Raphson. The vector has the same size of X_guess and contains values like the total number of moles or mol/L of an aquoeus component
             - X_guess       A vector containing the initial guesses of the primary aqueous species, primary sorption species, electrostatic species
+            - idx_fix_species Is a vector containing the index of fix species concentrations. To implement it, the hints of Wolery (1992) are followed from EQ3NR Manual.
             - A             A matrix containing the stoichiometric values of the mass balance parameters
             - log_k         A vector of log(Konstant equilibrium). Primary species of aquoues and sorption have a log_k=0
             - idx_Aq        An index vector with the different aqueous species position. It must coincide with the rows of "A".
@@ -53,11 +54,14 @@ def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0
     # instantiation variables for loop
     counter_iterations = 0
     abs_err = tolerance + 1
+    if idx_fix_species != None:
+        X_guess [idx_fix_species] = T [idx_fix_species]
+    
     while abs_err>tolerance and counter_iterations < max_iterations:
         # Calculate Y
-        [Y, T] = func_NR_FLM (X_guess, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma)
+        [Y, T] = func_NR_FLM (X_guess, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma, idx_fix_species)
         # Calculate Z
-        J = Jacobian_NR_FLM (X_guess, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma)
+        J = Jacobian_NR_FLM (X_guess, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma, idx_fix_species)
         # Calculating the diff, Delta_X
         delta_X = linalg.solve(J,-Y)
         #print(delta_X)
@@ -75,8 +79,10 @@ def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0
         
        # Vector_error = 
         # error
-        abs_err = max(abs(u-T))
-        
+        d = u-T
+        if idx_fix_species != None:
+            d[idx_fix_species] =0
+        abs_err = max(abs(d))     
         counter_iterations += 1
     if counter_iterations >= max_iterations:
             raise ValueError('Max number of iterations surpassed.') 
@@ -87,7 +93,7 @@ def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0
     return X_guess, C
     
 
-def func_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma):
+def func_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma, idx_fix_species=None):
     """
         This function is supossed to be linked to the fourth_layer_one_surface_speciation function.
         It just gave the evaluated vector of Y, for the Newton-raphson procedure.
@@ -105,6 +111,9 @@ def func_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, po
     T = Update_T_FLM(T, s, e, I, temp, a, Z,Capacitances, psi_v, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma, C_aq)
     # Calculation of Y
     Y= np.matmul(A.transpose(),C)-T
+    # fix?
+    if idx_fix_species != None:
+        Y[idx_fix_species]=0
     return Y,T
 
 def Boltzman_factor_2_psi (x,temp):
@@ -198,7 +207,7 @@ def Update_T_FLM(T, s,e, I, temp, a, Z,C, psi_v,zel, pos_psi0, pos_psialpha, pos
     
     return T
     
-def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma):
+def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma, idx_fix_species=None):
     '''
         This function should give the Jacobian. Here The jacobian is calculated as Westall (1980), except the electrostatic terms that are slightly different.
         The reason is because there seems to be some typos in Westall paper.
@@ -259,4 +268,9 @@ def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel
     Z[pos_psigamma,pos_psibeta] = Z[pos_psigamma, pos_psibeta] - gb_term/X[pos_psibeta]
     Z[pos_psigamma, pos_psigamma] = Z[pos_psigamma, pos_psigamma] +  dif_term/X[pos_psigamma] #Z[pos_bgamma, pos_bgamma] should be equal to  0
     # finally just return Z
+    if idx_fix_species != None:
+        for d in idx_fix_species:
+            v=np.zeros(length_X)
+            v[d]=1
+            Z[d,:] = v
     return Z
