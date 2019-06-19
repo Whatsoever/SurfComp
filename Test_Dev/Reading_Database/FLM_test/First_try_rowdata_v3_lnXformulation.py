@@ -82,17 +82,20 @@ F= open("T_efile_lnX.txt","w")
 for i in range(0,len(T_H)):
     # T_transpose =[ T_H+ T_Cl- T_Na+ T_SOH T_σ_0 T_σ_c T_σ_A T_σ_d ] 
     T=np.array([T_H[i], 1e-3, 1e-3, 9.9635e-6, 1, 1, 1, 1]) 
-    X_guess = np.array([T_H[i], 1e-3, 1e-3, 9.9635e-6, 8.7e-7, 0.9, 0.8, 0.9])
+    #X_guess = np.array([T_H[i], 1e-3, 1e-3, 9.9635e-6, 8.7e-7, 0.9, 0.8, 0.9])
     print(i)
     tolerance_B=1e-8
     [X,C, T_e]= funky (T, lnX_guess, A, Z, ln_k, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance_B)
     tolerance_vector.append(T_e)
+    lnX_guess = np.log(X)
     if i == 0:
         Array_X = X
         Array_C = C
     else:
         Array_X = np.vstack([Array_X, X])
         Array_C = np.vstack([Array_C, C])
+    if i == 5:
+        aere=32323
 F.close()
 np.save('tol_vec_v3_lnX',tolerance_vector)
 np.save('X_arr_v3_lnX',Array_X)

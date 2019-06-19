@@ -69,7 +69,7 @@ def surface_charge_diffusive_monovalentelectrolyte (R, T, epsilon, epsilon_0, io
     partA = np.sqrt(8*1000*R*T*epsilon*epsilon_0*ionic_strength)
     inner_B = (F*psi_d)/(2*R*T)
     partB = np.sinh(inner_B)
-    sigma_d = -partA*partB
+    sigma_d = partA*partB
     return sigma_d
     
 def charge_2_mol (charge, s, a, F):
@@ -132,7 +132,7 @@ def calculate_T (X, C, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, 
     T[pos_eb_0] = charge_2_mol(sigma_0, s, a, F)
     T[pos_eb_c] = charge_2_mol(sigma_C, s, a, F)
     T[pos_eb_a] = charge_2_mol(sigma_A, s, a, F)
-    T[pos_eb_d] = charge_2_mol(sigma_d_pb, s, a, F) - charge_2_mol(sigma_d_flm, s, a, F)
+    T[pos_eb_d] = charge_2_mol(sigma_d_pb, s, a, F) + charge_2_mol(sigma_d_flm, s, a, F)
     return T
 
 
@@ -180,9 +180,9 @@ def calculate_electrostatic_part (J, s, a, R, T, C_vector, Caq, Z, F, pos_eb_0, 
 def calculate_derivative_Td (C, R, T, F, Caq, Z, epsilon, epsilon_0, psi_d,s,a):
     ionic_strength = calculate_ionicstrength(Z, Caq)
     #
-    DT_Dpsid = -np.sqrt(8*1000*R*T*epsilon*epsilon_0*ionic_strength)*np.cosh((F*psi_d)/(2*R*T))*(F/(2*R*T)) - C
+    DY_Dpsid = -np.sqrt(8*1000*R*T*epsilon*epsilon_0*ionic_strength)*np.cosh((F*psi_d)/(2*R*T))*(F/(2*R*T)) - C
     Dpsid_DlnXpsid = (-R*T)/F
-    j_d = DT_Dpsid*Dpsid_DlnXpsid*((s*a)/F)
+    j_d = DY_Dpsid*Dpsid_DlnXpsid*((s*a)/F)
     return j_d
 
 def calculate_jacobian_function(ln_X, ln_K, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z):
@@ -217,7 +217,7 @@ def four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_
     R =  8.314472                                       # J/(K*mol)
     epsilon_0 = 8.854187871e-12                                # Farrads = F/m   - permittivity in vaccuum
     ln_X = lnX_guess
-    X = np.exp(ln_X)
+    #X = np.exp(ln_X)
     # instantiation variables for loop
     counter_iterations = 0
     abs_err = tolerance + 1
@@ -241,7 +241,9 @@ def four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_
         
        # Vector_error = 
         # error
-        abs_err = max(abs(u-T))     
+        res = u-T
+        #print(res)
+        abs_err = max(abs(res))     
         # Relaxation factor borrow from Craig M.Bethke to avoid negative values
         #max_1 = 1
         #max_2 =np.amax(-2*np.multiply(delta_ln_X, 1/ln_X))

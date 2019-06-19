@@ -12,13 +12,12 @@ was using a modified Maxwell method. Here, we use a rough Newton-Rapshon and pro
 import numpy as np
 from scipy import linalg
 
-def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k,idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp, s, a, e, Capacitances, scalingRC = True, idx_fix_species = None, zel=1, tolerance = 1e-6, max_iterations = 100):
+def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp, s, a, e, Capacitances, scalingRC = True, idx_fix_species = None, zel=1, tolerance = 1e-6, max_iterations = 100):
     """
     -The implementation of these algorithm is based on Westall (1980), but slightly modified in order to allow a 4th electrostatic layer.
         Arguments:
             - T             A vector needed for creating the residual function for the Newthon-Raphson. The vector has the same size of X_guess and contains values like the total number of moles or mol/L of an aquoeus component
             - X_guess       A vector containing the initial guesses of the primary aqueous species, primary sorption species, electrostatic species
-            - idx_fix_species Is a vector containing the index of fix species concentrations. To implement it, the hints of Wolery (1992) are followed from EQ3NR Manual.
             - A             A matrix containing the stoichiometric values of the mass balance parameters
             - log_k         A vector of log(Konstant equilibrium). Primary species of aquoues and sorption have a log_k=0
             - idx_Aq        An index vector with the different aqueous species position. It must coincide with the rows of "A".
@@ -27,6 +26,7 @@ def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k,idx_Aq,pos_psi0,
             - s             is the specific surface area
             - a             concentration of suspended solid
             - e             relative permittivity
+            - idx_fix_species Is a vector containing the index of fix species concentrations. To implement it, the hints of Wolery (1992) are followed from EQ3NR Manual.
             - Capacitances  [C1, C2, C3] 
             - temp           Temperature of the chemical system in Kelvins.
         Outputs: the outputs right now are:
@@ -56,12 +56,12 @@ def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k,idx_Aq,pos_psi0,
     abs_err = tolerance + 1
     if idx_fix_species != None:
         X_guess [idx_fix_species] = T [idx_fix_species]
-    
     while abs_err>tolerance and counter_iterations < max_iterations:
         # Calculate Y
         [Y, T] = func_NR_FLM (X_guess, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma, idx_fix_species)
         # Calculate Z
         J = Jacobian_NR_FLM (X_guess, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel, pos_psi0, pos_psialpha, pos_psibeta, pos_psigamma, idx_fix_species)
+        # Calculating the diff, Delta_X
         # Scaling technique is the RC technique from "Thermodynamic Equilibrium Solutions Through a Modified Newton Raphson Method"-Marianna Marinoni, Jer^ome Carrayrou, Yann Lucas, and Philippe Ackerer (2016)
         if scalingRC == True:
             D1 = diagonal_row(J)
@@ -74,7 +74,7 @@ def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k,idx_Aq,pos_psi0,
         else:
             # Calculating the diff, Delta_X
             delta_X = linalg.solve(J,-Y)
-        #print(delta_X)
+        #print(delta_X))
         # Relaxation factor borrow from Craig M.Bethke to avoid negative values
         max_1 = 1
         max_2 =np.amax(-2*np.multiply(delta_X, 1/X_guess))
@@ -87,12 +87,13 @@ def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k,idx_Aq,pos_psi0,
         C = 10**(log_C)
         u = np.matmul(A.transpose(),C)
         
-       # Vector_error = 
-        # error
+       # Vector_error 
         d = u-T
+        #print(d)
         if idx_fix_species != None:
             d[idx_fix_species] =0
-        abs_err = max(abs(d))     
+        abs_err = max(abs(d))
+        
         counter_iterations += 1
     if counter_iterations >= max_iterations:
             raise ValueError('Max number of iterations surpassed.') 
@@ -208,7 +209,7 @@ def Update_T_FLM(T, s,e, I, temp, a, Z,C, psi_v,zel, pos_psi0, pos_psialpha, pos
     T_beta = ((s*a)/F)*sigma_beta;              # units mol/L or mol/kg
     #!! Important!!
     #T_gammad = ((s*a)/F)*(-sigma_gamma+sigma_d)             # This part should be equal to C[2]*(psi_beta-psi_dorgamma)+sigma_d
-    T_gammad = (-sigma_gamma+sigma_d) 
+    T_gammad = ((s*a)/F)*(sigma_gamma+sigma_d) 
     # Now the values must be put in T
     T[pos_psi0] = T_0
     T[pos_psialpha] = T_alpha
@@ -266,17 +267,14 @@ def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel
     Z[pos_psibeta, pos_psigamma] = Z[pos_psibeta, pos_psigamma] - C3_sa_F2_RT/X[pos_psigamma]
     
     #### plane gamma [diffusive plane]
-    #gb_term = (((s*a)/F)*R*temp*Capacitances[2])/F
-    gb_term = (R*temp*Capacitances[2])/F
-    # PB solution of diffusive layer
-    # F/2RT (8RTε_o εI)^(1/2) cosh((Fψ_d)/2RT)
-    dif_term = sa_F2*((zel*F)/(2*R*temp))*np.sqrt(8*R*1000*temp*eo*e*I)*np.cosh((zel*Boltzman_factor_2_psi(X[pos_psigamma], temp)*F)/(2*R*temp))
-    dif_term = dif_term+Capacitances[2]
-    #dif_term = ((s*a)/F)*dif_term*((-R*temp)/F)
-    dif_term = dif_term*((-R*temp)/F)
-    # Assigning in Jacobian (plane beta)
-    Z[pos_psigamma,pos_psibeta] = Z[pos_psigamma, pos_psibeta] - gb_term/X[pos_psibeta]
-    Z[pos_psigamma, pos_psigamma] = Z[pos_psigamma, pos_psigamma] +  dif_term/X[pos_psigamma] #Z[pos_bgamma, pos_bgamma] should be equal to  0
+    Z[pos_psigamma,pos_psibeta] = Z[pos_psigamma, pos_psibeta] - C3_sa_F2_RT/X[pos_psibeta]
+    
+    # d_d plane
+    psi_d = Boltzman_factor_2_psi(X[pos_psigamma], temp)
+    DY_Dpsid = -np.sqrt(8*1000*R*temp*e*eo*I)*np.cosh((zel*F*psi_d)/(2*R*temp))*((zel*F)/(2*R*temp)) - Capacitances[2]
+    Dpsid_DpsidB = (-R*temp)/(F*X[pos_psigamma])
+    Z[pos_psigamma, pos_psigamma] = Z[pos_psigamma, pos_psigamma] + (DY_Dpsid*Dpsid_DpsidB*((s*a)/F))
+
     # finally just return Z
     if idx_fix_species != None:
         for d in idx_fix_species:
@@ -284,6 +282,7 @@ def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel
             v[d]=1
             Z[d,:] = v
     return Z
+
 
 def diagonal_row(J):
     num_rows = J.shape[0]

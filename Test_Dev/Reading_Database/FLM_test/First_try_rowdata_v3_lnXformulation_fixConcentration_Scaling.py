@@ -28,8 +28,8 @@ def funky (T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_e
 T_H = np.linspace(-3,-11.2,42)
 T_H = 10**T_H
 
-#idx_fix_species=[0]
-idx_fix_species=None
+idx_fix_species=[0]
+#idx_fix_species=None
 #X_guess = np.array([1e-3, 1e-3, 1e-3, 9.9635e-6, 8.7e-7, 2, 1.5, 2e-14])
 X_guess = np.array([1e-3, 1e-3, 1e-3, 9.9635e-6, 0.9, 0.8, 0.8, 0.7])
 lnX_guess = np.log(X_guess)
@@ -83,15 +83,17 @@ for i in range(0,len(T_H)):
     T=np.array([T_H[i], 1e-3, 1e-3, 9.9635e-6, 1, 1, 1, 1]) 
     X_guess = np.array([T_H[i], 1e-3, 1e-3, 9.9635e-6, 8.7e-7, 0.9, 0.8, 0.9])
     print(i)
-    tolerance_B=1e-8
+    tolerance_B=1e-12
     [X,C, T_e]= funky (T, lnX_guess, A, Z, ln_k, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance_B,idx_fix_species)
     tolerance_vector.append(T_e)
     if i == 0:
         Array_X = X
         Array_C = C
+        lnX_guess=np.log(X)
     else:
         Array_X = np.vstack([Array_X, X])
         Array_C = np.vstack([Array_C, C])
+        lnX_guess=np.log(X)
 F.close()
 np.save('tol_vec_v3_lnX_fix',tolerance_vector)
 np.save('X_arr_v3_lnX_fix',Array_X)

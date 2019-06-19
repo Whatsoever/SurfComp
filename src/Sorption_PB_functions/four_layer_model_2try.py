@@ -75,7 +75,9 @@ def four_layer_one_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0
         
        # Vector_error = 
         # error
-        abs_err = max(abs(u-T))
+        res = u-T
+        print(res)
+        abs_err = max(abs(res))
         
         counter_iterations += 1
     if counter_iterations >= max_iterations:
@@ -189,7 +191,7 @@ def Update_T_FLM(T, s,e, I, temp, a, Z,C, psi_v,zel, pos_psi0, pos_psialpha, pos
     T_beta = ((s*a)/F)*sigma_beta;              # units mol/L or mol/kg
     #!! Important!!
     #T_gammad = ((s*a)/F)*(-sigma_gamma+sigma_d)             # This part should be equal to C[2]*(psi_beta-psi_dorgamma)+sigma_d
-    T_gammad = (-sigma_gamma+sigma_d) 
+    T_gammad = ((s*a)/F)*(sigma_gamma+sigma_d) 
     # Now the values must be put in T
     T[pos_psi0] = T_0
     T[pos_psialpha] = T_alpha
@@ -247,16 +249,13 @@ def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, s, a, e, Capacitances, T, Z, zel
     Z[pos_psibeta, pos_psigamma] = Z[pos_psibeta, pos_psigamma] - C3_sa_F2_RT/X[pos_psigamma]
     
     #### plane gamma [diffusive plane]
-    #gb_term = (((s*a)/F)*R*temp*Capacitances[2])/F
-    gb_term = (R*temp*Capacitances[2])/F
-    # PB solution of diffusive layer
-    # F/2RT (8RTε_o εI)^(1/2) cosh((Fψ_d)/2RT)
-    dif_term = sa_F2*((zel*F)/(2*R*temp))*np.sqrt(8*R*1000*temp*eo*e*I)*np.cosh((zel*Boltzman_factor_2_psi(X[pos_psigamma], temp)*F)/(2*R*temp))
-    dif_term = dif_term+Capacitances[2]
-    #dif_term = ((s*a)/F)*dif_term*((-R*temp)/F)
-    dif_term = dif_term*((-R*temp)/F)
-    # Assigning in Jacobian (plane beta)
-    Z[pos_psigamma,pos_psibeta] = Z[pos_psigamma, pos_psibeta] - gb_term/X[pos_psibeta]
-    Z[pos_psigamma, pos_psigamma] = Z[pos_psigamma, pos_psigamma] +  dif_term/X[pos_psigamma] #Z[pos_bgamma, pos_bgamma] should be equal to  0
+    Z[pos_psigamma,pos_psibeta] = Z[pos_psigamma, pos_psibeta] - C3_sa_F2_RT/X[pos_psibeta]
+    
+    # d_d plane
+    psi_d = Boltzman_factor_2_psi(X[pos_psigamma], temp)
+    DY_Dpsid = -np.sqrt(8*1000*R*temp*e*eo*I)*np.cosh((zel*F*psi_d)/(2*R*temp))*((zel*F)/(2*R*temp)) - Capacitances[2]
+    Dpsid_DpsidB = (-R*temp)/(F*X[pos_psigamma])
+    Z[pos_psigamma, pos_psigamma] = Z[pos_psigamma, pos_psigamma] + (DY_Dpsid*Dpsid_DpsidB*((s*a)/F))
+
     # finally just return Z
     return Z

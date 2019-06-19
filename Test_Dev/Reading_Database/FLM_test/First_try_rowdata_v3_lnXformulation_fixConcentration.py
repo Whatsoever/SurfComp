@@ -85,6 +85,7 @@ for i in range(0,len(T_H)):
     tolerance_B=1e-8
     [X,C, T_e]= funky (T, lnX_guess, A, Z, ln_k, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, tolerance_B,idx_fix_species)
     tolerance_vector.append(T_e)
+    lnX_guess = np.log(X)
     if i == 0:
         Array_X = X
         Array_C = C

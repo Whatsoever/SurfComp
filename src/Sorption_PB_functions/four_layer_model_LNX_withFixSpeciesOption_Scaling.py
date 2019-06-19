@@ -69,7 +69,7 @@ def surface_charge_diffusive_monovalentelectrolyte (R, T, epsilon, epsilon_0, io
     partA = np.sqrt(8*1000*R*T*epsilon*epsilon_0*ionic_strength)
     inner_B = (F*psi_d)/(2*R*T)
     partB = np.sinh(inner_B)
-    sigma_d = -partA*partB
+    sigma_d = partA*partB
     return sigma_d
     
 def charge_2_mol (charge, s, a, F):
@@ -148,7 +148,7 @@ def calculate_T (X, C, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, 
     T[pos_eb_0] = charge_2_mol(sigma_0, s, a, F)
     T[pos_eb_c] = charge_2_mol(sigma_C, s, a, F)
     T[pos_eb_a] = charge_2_mol(sigma_A, s, a, F)
-    T[pos_eb_d] = charge_2_mol(sigma_d_pb, s, a, F) - charge_2_mol(sigma_d_flm, s, a, F)
+    T[pos_eb_d] = charge_2_mol(sigma_d_pb, s, a, F) + charge_2_mol(sigma_d_flm, s, a, F)
     return T
 
 

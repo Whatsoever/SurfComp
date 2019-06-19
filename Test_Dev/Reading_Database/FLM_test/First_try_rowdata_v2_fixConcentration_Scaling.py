@@ -28,8 +28,8 @@ def funky (T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta, 
 
 
 
-#idx_fix_species=[0]
-idx_fix_species=None
+idx_fix_species=[0]
+#idx_fix_species=None
 T_H = np.linspace(-3,-11.2,42)
 T_H = 10**T_H
 
@@ -98,6 +98,7 @@ for i in range(0,len(T_H)):
     tolerance_B=1e-8
     [X,C, T_e]= funky (T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psialpha, pos_psibeta,  pos_psigamma,temp, s, a, e, Capacitances, tolerance_B, idx_fix_species)
     tolerance_vector.append(T_e)
+    X_guess = X
     if i == 0:
         Array_X = X
         Array_C = C
