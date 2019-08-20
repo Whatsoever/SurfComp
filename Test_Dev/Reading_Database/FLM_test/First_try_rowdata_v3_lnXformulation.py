@@ -45,7 +45,7 @@ Z=np.array([1,-1,1])
 
 log_k = np.array([0, 0, 0, 0, 4, -8.8, 5.82, -7])
 ln_k = log_k/np.log10(np.e)      # Changing the base from log_10 to ln (log_e)
-
+#ln_k = log_k
 
 # - idx_Aq        An index vector with the different aqueous species position. It must coincide with the rows of "A".
 'I must check if the first position of idx_Aq is 0 or 1. Since it is python I guess it will be 0'

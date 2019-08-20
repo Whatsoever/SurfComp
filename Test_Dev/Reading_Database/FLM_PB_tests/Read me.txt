@@ -1,0 +1,2 @@
+Each .py file in this folder is relates to a test and to a script on the src folder. The scripts are kept as separated functions on src,
+they can be added to the code, once they work properly, and are understand.

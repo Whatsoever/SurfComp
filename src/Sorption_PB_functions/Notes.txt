@@ -1,8 +1,22 @@
-four_layer_model is not stable due to negative values that can arise in the internal solver of scipy.
+0) "bvp" is the boundary value problem solver of scipy. It has been modified to accept arrays.
 
-four_layer_model_2try is like four_layer_model but with a Newton-Raphson and underrelaxation technique
-although it is not extremely stable, it tend to converge, at least for the flm test, but the tolerance is not
-extremely high.
+1) "four_layer_model.py" is not stable due to negative values that can arise in the internal solver of scipy.
 
-four_layer_model_LNX is like four_layer_model but with a natural log formulation it seems 
-to be the more stable option. The tolerance of convergence is a factor of 10 or 100 decimal better.
+2) "four_layer_model_2try.py" is like "four_layer_model.py" but with a Newton-Raphson and underrelaxation technique.
+
+3) "four_layer_model_LNX.py" is like "four_layer_model_2try.py" but with a natural log formulation it is more stable option. 
+
+4) "four_layer_model_2try_withFixSpeciesOption.py" is like "four_layer_model_2try.py" but with an option to fix the value of aqueuous primary species
+
+5) "four_layer_model_2try_withFixSpeciesOption_Scaling.py" is like "four_layer_model_2try_withFixSpeciesOption.py" but includes a scaling matrix approach
+
+6) "four_layer_model_LNX_withFixSpeciesOption.py" is like "four_layer_model_2try_withFixSpeciesOption.py" but with a natural log formulation it is more stable option.
+
+7) "four_layer_model_LNX_withFixSpeciesOption_Scaling.py" is like "four_layer_model_2try_withFixSpeciesOption_Scaling.py" but with a natural log formulation it is more stable option.
+
+[from 1) to 7) are all models with only one surface]
+
+8) "four_layer_model_2try_withFixSpeciesOption_Scaling_2surface.py" --> It is like "four_layer_model_2try_withFixSpeciesOption_Scaling.py" but with an extra surface.
+   The extra surface is equal to the other surface, but is so far that the poisson boltzman is at infinity.
+
+9) "four_layer_model_LNX_withFixSpeciesOption_Scaling_2surface.py" it is like "four_layer_model_2try_withFixSpeciesOption_Scaling_2surface.py"
