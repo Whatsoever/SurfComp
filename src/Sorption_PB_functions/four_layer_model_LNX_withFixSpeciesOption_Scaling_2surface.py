@@ -124,40 +124,50 @@ def diagonal_col(J):
 
 ####################### functions of basic functions ###############################
 'relative to residual function'
-def calculate_T (X, C, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, T, F,Z):
-    X_0 = X[pos_eb_0]
-    X_C = X[pos_eb_c]
-    X_A = X[pos_eb_a]
-    X_D = X[pos_eb_d]
+def calculate_T (X, C, idx_Aq,pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, epsilon, epsilon_0, C_vectorS1, C_vectorS2, R, T, F,Z):
+    X_S1_0 = X[pos_psi_S1_vec[0]];X_S2_0 = X[pos_psi_S2_vec[0]];
+    X_S1_C = X[pos_psi_S1_vec[1]];X_S2_C = X[pos_psi_S2_vec[1]];
+    X_S1_A = X[pos_psi_S1_vec[2]];X_S2_A = X[pos_psi_S2_vec[2]];
+    X_S1_D = X[pos_psi_S1_vec[3]];X_S2_D = X[pos_psi_S2_vec[3]];
     'Now the psi'
-    psi_0 = boltzman_2_psi(X_0, R, temp, F)
-    psi_C = boltzman_2_psi(X_C, R, temp, F)
-    psi_A = boltzman_2_psi(X_A, R, temp, F)
-    psi_D = boltzman_2_psi(X_D, R, temp, F)
+    psi_S1_0 = boltzman_2_psi(X_S1_0, R, temp, F);psi_S2_0 = boltzman_2_psi(X_S2_0, R, temp, F);
+    psi_S1_C = boltzman_2_psi(X_S1_C, R, temp, F);psi_S2_C = boltzman_2_psi(X_S2_C, R, temp, F);
+    psi_S1_A = boltzman_2_psi(X_S1_A, R, temp, F);psi_S2_A = boltzman_2_psi(X_S2_A, R, temp, F);
+    psi_S1_D = boltzman_2_psi(X_S1_D, R, temp, F);psi_S2_D = boltzman_2_psi(X_S2_D, R, temp, F);
     'Now the charge'
     #previous to charge
     Caq = C[idx_Aq]
     ionic_strength = calculate_ionicstrength(Z, Caq)
     # charge
-    sigma_0 = surface_charge_edgelayer_flm(C_vector[0],psi_0,psi_C)
-    sigma_C = surface_charge_between_layer_flm(C_vector[0], C_vector[1], psi_C, psi_0, psi_A)
-    sigma_A = surface_charge_between_layer_flm(C_vector[1], C_vector[2], psi_A, psi_C, psi_D)
-    sigma_d_flm = surface_charge_edgelayer_flm(C_vector[2],psi_D,psi_A)
-    sigma_d_pb = surface_charge_diffusive_monovalentelectrolyte (R, temp, epsilon, epsilon_0, ionic_strength, F, psi_D)
+    sigma_S1_0 = surface_charge_edgelayer_flm(C_vectorS1[0],psi_S1_0,psi_S1_C)
+    sigma_S1_C = surface_charge_between_layer_flm(C_vectorS1[0], C_vectorS1[1], psi_S1_C, psi_S1_0, psi_S1_A)
+    sigma_S1_A = surface_charge_between_layer_flm(C_vectorS1[1], C_vectorS1[2], psi_S1_A, psi_S1_C, psi_S1_D)
+    sigma_S1_d_flm = surface_charge_edgelayer_flm(C_vectorS1[2],psi_S1_D,psi_S1_A)
+    sigma_S1_d_pb = surface_charge_diffusive_monovalentelectrolyte (R, temp, epsilon, epsilon_0, ionic_strength, F, psi_S1_D)
+    #idem
+    sigma_S2_0 = surface_charge_edgelayer_flm(C_vectorS2[0],psi_S2_0,psi_S2_C)
+    sigma_S2_C = surface_charge_between_layer_flm(C_vectorS2[0], C_vectorS2[1], psi_S2_C, psi_S2_0, psi_S2_A)
+    sigma_S2_A = surface_charge_between_layer_flm(C_vectorS2[1], C_vectorS2[2], psi_S2_A, psi_S2_C, psi_S2_D)
+    sigma_S2_d_flm = surface_charge_edgelayer_flm(C_vectorS2[2],psi_S2_D,psi_S2_A)
+    sigma_S2_d_pb = surface_charge_diffusive_monovalentelectrolyte (R, temp, epsilon, epsilon_0, ionic_strength, F, psi_S2_D)
     'Change value in the electrostatic positions'
-    T[pos_eb_0] = charge_2_mol(sigma_0, s, a, F)
-    T[pos_eb_c] = charge_2_mol(sigma_C, s, a, F)
-    T[pos_eb_a] = charge_2_mol(sigma_A, s, a, F)
-    T[pos_eb_d] = charge_2_mol(sigma_d_pb, s, a, F) + charge_2_mol(sigma_d_flm, s, a, F)
+    T[pos_psi_S1_vec[0]] = charge_2_mol(sigma_S1_0, sS1, aS1, F);
+    T[pos_psi_S1_vec[1]] = charge_2_mol(sigma_S1_C, sS1, aS1, F)
+    T[pos_psi_S1_vec[2]] = charge_2_mol(sigma_S1_A, sS1, aS1, F)
+    T[pos_psi_S1_vec[3]] = charge_2_mol(sigma_S1_d_pb, sS1, aS1, F) + charge_2_mol(sigma_S1_d_flm, sS1, aS1, F)
+    T[pos_psi_S2_vec[0]] = charge_2_mol(sigma_S2_0, sS2, aS2, F);
+    T[pos_psi_S2_vec[1]] = charge_2_mol(sigma_S2_C, sS2, aS2, F)
+    T[pos_psi_S2_vec[2]] = charge_2_mol(sigma_S2_A, sS2, aS2, F)
+    T[pos_psi_S2_vec[3]] = charge_2_mol(sigma_S2_d_pb, sS2, aS2, F) + charge_2_mol(sigma_S2_d_flm, sS2, aS2, F)
     return T
 
 
-def calculate_residual_function(T,ln_X, ln_K, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z, idx_fix_species = None):
+def calculate_residual_function(T,ln_X, ln_K, A, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, epsilon, epsilon_0,C_vectorS1, C_vectorS2, R, F,Z, idx_fix_species = None):
     ln_C = mass_action_law (ln_X, ln_K, A)
     C = np.exp(ln_C)
     u = u_componentvector(A,C)
     X = np.exp(ln_X)
-    T = calculate_T (X, C, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, T, F, Z) 
+    T = calculate_T (X, C, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, epsilon, epsilon_0, C_vectorS1, C_vectorS2, R, T, F, Z) 
     Y = u-T
     if idx_fix_species != None:
         Y[idx_fix_species]=0
@@ -175,24 +185,43 @@ def calculate_J_classicalPart(ln_X, ln_K, A):
             Z[i,j]= np.matmul(np.multiply(A[:,i], A[:,j]), C)
     return Z, C
 
-def calculate_electrostatic_part (J, s, a, R, T, C_vector, Caq, Z, F, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, epsilon, epsilon_0, psi_d):
+def calculate_electrostatic_part (J, sS1, aS1, sS2, aS2, R, T, C_vectorS1, C_vectorS2, Caq, Z, F, pos_psi_S1_vec, pos_psi_S2_vec, epsilon, epsilon_0, psi_S1_d, psi_S2_d):
+    #######################S1######################################
     # plane 0
-    J[pos_eb_0,pos_eb_0] = J[pos_eb_0, pos_eb_0] + ((C_vector[0]*R*T*s*a)/(F*F))
-    J[pos_eb_0, pos_eb_c] = J[pos_eb_0, pos_eb_c] - ((C_vector[0]*R*T*s*a)/(F*F))
+    J[pos_psi_S1_vec[0],pos_psi_S1_vec[0]] = J[pos_psi_S1_vec[0], pos_psi_S1_vec[0]] + ((C_vectorS1[0]*R*T*sS1*aS1)/(F*F))
+    J[pos_psi_S1_vec[0], pos_psi_S1_vec[1]] = J[pos_psi_S1_vec[0], pos_psi_S1_vec[1]] - ((C_vectorS1[0]*R*T*sS1*aS1)/(F*F))
     
     # plane C
-    J[pos_eb_c, pos_eb_0] = J[pos_eb_c, pos_eb_0] - ((C_vector[0]*R*T*s*a)/(F*F))
-    J[pos_eb_c, pos_eb_c] = J[pos_eb_c, pos_eb_c] + (((C_vector[0]+C_vector[1])*R*T*s*a)/(F*F))
-    J[pos_eb_c, pos_eb_a] = J[pos_eb_c, pos_eb_a] - ((C_vector[1]*R*T*s*a)/(F*F))
+    J[pos_psi_S1_vec[1], pos_psi_S1_vec[0]] = J[pos_psi_S1_vec[1], pos_psi_S1_vec[0]] - ((C_vectorS1[0]*R*T*sS1*aS1)/(F*F))
+    J[pos_psi_S1_vec[1], pos_psi_S1_vec[1]] = J[pos_psi_S1_vec[1], pos_psi_S1_vec[1]] + (((C_vectorS1[0]+C_vectorS1[1])*R*T*sS1*aS1)/(F*F))
+    J[pos_psi_S1_vec[1], pos_psi_S1_vec[2]] = J[pos_psi_S1_vec[1], pos_psi_S1_vec[2]] - ((C_vectorS1[1]*R*T*sS1*aS1)/(F*F))
     
     # plane A
-    J[pos_eb_a, pos_eb_c] = J[pos_eb_a, pos_eb_c] - ((C_vector[1]*R*T*s*a)/(F*F))
-    J[pos_eb_a, pos_eb_a] = J[pos_eb_a, pos_eb_a] + (((C_vector[1]+C_vector[2])*R*T*s*a)/(F*F))
-    J[pos_eb_a, pos_eb_d] = J[pos_eb_a, pos_eb_d] - ((C_vector[2]*R*T*s*a)/(F*F))
+    J[pos_psi_S1_vec[2], pos_psi_S1_vec[1]] = J[pos_psi_S1_vec[2], pos_psi_S1_vec[1]] - ((C_vectorS1[1]*R*T*sS1*aS1)/(F*F))
+    J[pos_psi_S1_vec[2], pos_psi_S1_vec[2]] = J[pos_psi_S1_vec[2], pos_psi_S1_vec[2]] + (((C_vectorS1[1]+C_vectorS1[2])*R*T*sS1*aS1)/(F*F))
+    J[pos_psi_S1_vec[2], pos_psi_S1_vec[3]] = J[pos_psi_S1_vec[2], pos_psi_S1_vec[3]] - ((C_vectorS1[2]*R*T*sS1*aS1)/(F*F))
     
     #plane D
-    J[pos_eb_d, pos_eb_a] = J[pos_eb_d, pos_eb_a] - ((R*T*s*a*C_vector[2])/(F*F))
-    J[pos_eb_d, pos_eb_d] = calculate_derivative_Td (C_vector[2], R, T, F, Caq, Z, epsilon, epsilon_0, psi_d,s,a)
+    J[pos_psi_S1_vec[3], pos_psi_S1_vec[2]] = J[pos_psi_S1_vec[3], pos_psi_S1_vec[2]] - ((R*T*sS1*aS1*C_vectorS1[2])/(F*F))
+    J[pos_psi_S1_vec[3], pos_psi_S1_vec[3]] = calculate_derivative_Td (C_vectorS1[2], R, T, F, Caq, Z, epsilon, epsilon_0, psi_S1_d,sS1,aS1)
+    #######################S2######################################
+    # plane 0
+    J[pos_psi_S2_vec[0],pos_psi_S2_vec[0]] = J[pos_psi_S2_vec[0], pos_psi_S2_vec[0]] + ((C_vectorS2[0]*R*T*sS2*aS2)/(F*F))
+    J[pos_psi_S2_vec[0], pos_psi_S2_vec[1]] = J[pos_psi_S2_vec[0], pos_psi_S2_vec[1]] - ((C_vectorS2[0]*R*T*sS2*aS2)/(F*F))
+    
+    # plane C
+    J[pos_psi_S2_vec[1], pos_psi_S2_vec[0]] = J[pos_psi_S2_vec[1], pos_psi_S2_vec[0]] - ((C_vectorS2[0]*R*T*sS2*aS2)/(F*F))
+    J[pos_psi_S2_vec[1], pos_psi_S2_vec[1]] = J[pos_psi_S2_vec[1], pos_psi_S2_vec[1]] + (((C_vectorS2[0]+C_vectorS2[1])*R*T*sS2*aS2)/(F*F))
+    J[pos_psi_S2_vec[1], pos_psi_S2_vec[2]] = J[pos_psi_S2_vec[1], pos_psi_S2_vec[2]] - ((C_vectorS2[1]*R*T*sS2*aS2)/(F*F))
+    
+    # plane A
+    J[pos_psi_S2_vec[2], pos_psi_S2_vec[1]] = J[pos_psi_S2_vec[2], pos_psi_S2_vec[1]] - ((C_vectorS2[1]*R*T*sS2*aS2)/(F*F))
+    J[pos_psi_S2_vec[2], pos_psi_S2_vec[2]] = J[pos_psi_S2_vec[2], pos_psi_S2_vec[2]] + (((C_vectorS2[1]+C_vectorS2[2])*R*T*sS2*aS2)/(F*F))
+    J[pos_psi_S2_vec[2], pos_psi_S2_vec[3]] = J[pos_psi_S2_vec[2], pos_psi_S2_vec[3]] - ((C_vectorS2[2]*R*T*sS2*aS2)/(F*F))
+    
+    #plane D
+    J[pos_psi_S2_vec[3], pos_psi_S2_vec[2]] = J[pos_psi_S2_vec[3], pos_psi_S2_vec[2]] - ((R*T*sS2*aS2*C_vectorS2[2])/(F*F))
+    J[pos_psi_S2_vec[3], pos_psi_S2_vec[3]] = calculate_derivative_Td (C_vectorS2[2], R, T, F, Caq, Z, epsilon, epsilon_0, psi_S2_d,sS2,aS2)
     return J
 
 def calculate_derivative_Td (C, R, T, F, Caq, Z, epsilon, epsilon_0, psi_d,s,a):
@@ -203,14 +232,15 @@ def calculate_derivative_Td (C, R, T, F, Caq, Z, epsilon, epsilon_0, psi_d,s,a):
     j_d = DT_Dpsid*Dpsid_DlnXpsid*((s*a)/F)
     return j_d
 
-def calculate_jacobian_function(ln_X, ln_K, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z,idx_fix_species = None):
+def calculate_jacobian_function(ln_X, ln_K, A, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, epsilon, epsilon_0, C_vectorS1, C_vectorS2, R, F,Z,idx_fix_species = None):
     length_X=len(ln_X)
     #
     [J,C] = calculate_J_classicalPart(ln_X, ln_K, A)
     Caq = C[idx_Aq]
     X = np.exp(ln_X)
-    psi_d = boltzman_2_psi(X[pos_eb_d], R, temp, F)
-    J = calculate_electrostatic_part (J, s, a, R, temp, C_vector, Caq, Z, F, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, epsilon, epsilon_0, psi_d)
+    psi_S1_d = boltzman_2_psi(X[pos_psi_S1_vec[3]], R, temp, F)
+    psi_S2_d = boltzman_2_psi(X[pos_psi_S2_vec[3]], R, temp, F)
+    J = calculate_electrostatic_part (J, sS1, aS1, sS2, aS2, R, temp, C_vectorS1, C_vectorS2, Caq, Z, F, pos_psi_S1_vec, pos_psi_S2_vec, epsilon, epsilon_0, psi_S1_d, psi_S2_d)
     # finally just return Z
     if idx_fix_species != None:
         for d in idx_fix_species:
@@ -221,7 +251,7 @@ def calculate_jacobian_function(ln_X, ln_K, A, idx_Aq, pos_eb_0, pos_eb_c, pos_e
 
 ###################### SOLVING ####################################################
 
-def four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, C_vector, scalingRC = True, idx_fix_species = None, tolerance = 1e-6, max_iterations = 100, debug_flm = None):
+def four_layer_two_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, epsilon, C_vectorS1, C_vectorS2, idx_fix_species = None, tolerance = 1e-6, max_iterations = 100, scalingRC = True, debug_flm = None):
     '''
         - T --> The vector of Total values (The electrostatic values will be recalculated, so it does not matter what has been introduced)
         - lnX_guess --> The vector of primary vairables, it might be preconditioned in the future.
@@ -230,10 +260,13 @@ def four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_
         - idx_Aq --> An index vector with the different aqueous species position. It must coincide with the rows of "A".
         - Z --> The vector of charge of the different ion. The order is determine by the rows of "A" for aqueous species. That means that it is link to idx_Aq somehow.
         - pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d -->  This is basically the position of the boltzman factor for the different planes
-        - s --> concentration of suspended solid. 
-        - a --> is the specific surface area
+        - sS1 --> concentration of suspended solid for surface 1.
+        - aS1 --> is the specific surface area for surface 1.
+        - sS2 --> concentration of suspended solid for surface 2.
+        - aS2 --> is the specific surface area for surface 2.
         - epsilon --> relative permittivity
-        - C_vector --> [C1, C2, C3] 
+        - C_vectorS1 --> [C1, C2, C3] for surface1
+        - C_vectorS2 --> [C1, C2, C3] for surface2
         - temp --> Temperature of the chemical system in Kelvins.
         - debug_flm --> the class is given, only if important information about a problem is desired.
     '''
@@ -250,10 +283,10 @@ def four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_
     abs_err = tolerance + 1
     while abs_err>tolerance and counter_iterations < max_iterations:
         # Calculate Residual function
-        [Y,T] = calculate_residual_function(T,ln_X, ln_k, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z,idx_fix_species)
+        [Y,T] = calculate_residual_function(T,ln_X, ln_k, A, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, epsilon, epsilon_0, C_vectorS1, C_vectorS2, R, F,Z,idx_fix_species)
         # Calculate Jacobian Residual function
-        J = calculate_jacobian_function(ln_X, ln_k, A, idx_Aq, pos_eb_0, pos_eb_c, pos_eb_a,  pos_eb_d, temp, s, a, epsilon, epsilon_0, C_vector, R, F,Z, idx_fix_species)
-        #print(J)
+        J = calculate_jacobian_function(ln_X, ln_k, A, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, epsilon, epsilon_0, C_vectorS1, C_vectorS2, R, F,Z, idx_fix_species)
+        #print(J)  
         # Here the precondition techniques can be implemented
         # solve
         if scalingRC == True:

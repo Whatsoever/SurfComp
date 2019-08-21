@@ -11,7 +11,7 @@ It is like the four_layer_model_2try_withFixSpeciesOption_Scaling.py, but with t
 import numpy as np
 from scipy import linalg
 
-def four_layer_two_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, scalingRC = True, idx_fix_species = None, zel=1, tolerance = 1e-6, max_iterations = 100):
+def four_layer_two_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, idx_fix_species = None, zel=1, tolerance = 1e-6, max_iterations = 100,scalingRC = True):
     """
     -The implementation of these algorithm is based on Westall (1980), but slightly modified in order to allow a 4th electrostatic layer and 2 surface which its diffuse layers does not interact 
      Arguments:
@@ -101,7 +101,7 @@ def four_layer_two_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq,pos_psi0
     C = 10**(log_C)
     return X_guess, C
     
- def func_NR_FLM (X, A, log_k, temp, idx_Aq,  sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, T, Z, zel, pos_psi_S1_vec, pos_psi_S2_vec, idx_fix_species=None):
+def func_NR_FLM (X, A, log_k, temp, idx_Aq,  sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, T, Z, zel, pos_psi_S1_vec, pos_psi_S2_vec, idx_fix_species=None):
     """
         This function is supossed to be linked to the four_layer_two_surface_speciation function.
         It just gave the evaluated vector of Y, and T for the Newton-raphson procedure.
@@ -199,15 +199,15 @@ def Update_T_FLM(T, sS1, sS2, e, I, temp, aS1, aS2, Z,CapacitancesS1, Capacitanc
     T_S2_gammad = ((sS2*aS2)/F)*(sigma_S2_gamma+sigma_S2_d) 
     
     # Now the values must be put in T
-    T[psi_S1_v[0]] = T_S1_0
-    T[psi_S1_v[1]] = T_S1_alpha
-    T[psi_S1_v[2]] = T_S1_beta
-    T[psi_S1_v[3]] = T_S1_gammad
+    T[pos_psi_S1_vec[0]] = T_S1_0
+    T[pos_psi_S1_vec[1]] = T_S1_alpha
+    T[pos_psi_S1_vec[2]] = T_S1_beta
+    T[pos_psi_S1_vec[3]] = T_S1_gammad
     
-    T[psi_S2_v[0]] = T_S2_0
-    T[psi_S2_v[1]] = T_S2_alpha
-    T[psi_S2_v[2]] = T_S2_beta
-    T[psi_S2_v[3]] = T_S2_gammad
+    T[pos_psi_S2_vec[0]] = T_S2_0
+    T[pos_psi_S2_vec[1]] = T_S2_alpha
+    T[pos_psi_S2_vec[2]] = T_S2_beta
+    T[pos_psi_S2_vec[3]] = T_S2_gammad
     
     return T
 
