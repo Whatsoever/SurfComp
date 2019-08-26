@@ -20,3 +20,5 @@
    The extra surface is equal to the other surface, but is so far that the poisson boltzman is at infinity.
 
 9) "four_layer_model_LNX_withFixSpeciesOption_Scaling_2surface.py" it is like "four_layer_model_2try_withFixSpeciesOption_Scaling_2surface.py"
+
+10) "PB_coup_four_layer_2try.py" is the numerical implementation

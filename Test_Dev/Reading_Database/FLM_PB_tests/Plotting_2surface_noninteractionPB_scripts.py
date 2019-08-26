@@ -42,8 +42,8 @@ Carr2 = np.load('C_arr_lnX.npy')
 
 # Comparing between the two different formulation
 #for i in range(0,12):
- #   plot_2_Element(-np.log10(T_H), -np.log10(Xarr1[:,i]), -np.log10(Xarr2[:,i]))
- 
+    #plot_2_Element(-np.log10(T_H), -np.log10(Xarr1[:,i]), -np.log10(Xarr2[:,i]))
+    #plot_2_Element(-np.log10(T_H), Xarr1[:,i], Xarr2[:,i])
 # Comparing between surface
 #d1=[5,6,7,8]
 #d2=[9,10,11,12]
