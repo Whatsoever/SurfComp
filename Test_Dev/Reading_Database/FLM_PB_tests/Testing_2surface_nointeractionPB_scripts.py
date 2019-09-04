@@ -63,8 +63,8 @@ Array_C2 = []
 for i in range(0,len(T_H)):
     T=np.array([T_H[i], 1e-3, 1e-3, 9.9635e-6, 9.9635e-6, 8.7e-7, 0.9, 0.9, 0.9,8.7e-7, 0.9, 0.9, 0.9]) 
     lnX_guess = np.log(X_guess)
-    [X1,C1] = flm1.four_layer_two_surface_speciation(T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, idx_fix_species , zel=1, tolerance = 1e-6, max_iterations = 100, scalingRC = True)
-    [X2,C2] = flm2.four_layer_two_surface_speciation(T, lnX_guess, A, Z, ln_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, idx_fix_species, tolerance = 1e-6, max_iterations = 100, scalingRC = True, debug_flm = None)
+    [X1,C1] = flm1.four_layer_two_surface_speciation(T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, idx_fix_species , zel=1, tolerance = 1e-12, max_iterations = 100, scalingRC = True)
+    [X2,C2] = flm2.four_layer_two_surface_speciation(T, lnX_guess, A, Z, ln_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, idx_fix_species, tolerance = 1e-12, max_iterations = 100, scalingRC = True, debug_flm = None)
     lnX_guess=np.log(X2)
     X_guess = X1
     if i == 0:

@@ -5,13 +5,24 @@ Created on Tue Aug 27 11:07:18 2019
 @author: DaniJ
 """
 
+import PB_coup_four_layer_2try_2v as flmPB_v2
 import PB_coup_four_layer_2try as flmPB
 import four_layer_model_2try_withFixSpeciesOption_Scaling_2surface as flm1
 import numpy as np
 import scipy as sp
 
 from matplotlib import pyplot as plt
-
+def Boltzman_factor_2_psi (x,temp):
+    '''
+        Transforms the equation from Xb = exp(-psi*F/RT) to psi = -ln(Xb)RT/F
+        from Boltzman factor to electrostatic potential
+        The units of "temp" (short for temperature) should be Kelvin
+    '''
+    R =  8.314472                                       # J/(K*mol)
+    F = 96485.3328959                                   # C/mol                                    
+    D = R*temp
+    psi = - np.log(x)*(D/F)
+    return psi   
 
 
 idx_fix_species=[0]
@@ -53,8 +64,15 @@ e = 78.45203739768931
 CapacitancesS1=[1.05, 3.36, 0.27] 
 CapacitancesS2=[1.05, 3.36, 0.27] 
 #
-x = np.linspace(0,10,800)
+x = np.linspace(0,600e-9,100)
+d0=0        # initial position
+df=600e-9   # final position
 T=np.array([1e-3, 1e-3, 1e-3, 9.9635e-6, 9.9635e-6, 8.7e-7, 0.9, 0.9, 0.9,8.7e-7, 0.9, 0.9, 0.9]) 
 #(T, X_guess, distance, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, x, idx_fix_species = None, zel=1, tolerance = 1e-6, max_iterations = 100,scalingRC = True):
-[X_guess,C1] = flm1.four_layer_two_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, idx_fix_species, zel=1, tolerance = 1e-6, max_iterations = 100,scalingRC = True)
-[X,C] = flmPB.PB_and_fourlayermodel(T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, x, idx_fix_species, zel=1, tolerance = 1e-6, max_iterations = 100,scalingRC = True)
+[X_guess,C1] = flm1.four_layer_two_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, idx_fix_species, zel=1, tolerance = 1e-12, max_iterations = 100,scalingRC = True)
+X_guess[8] = Boltzman_factor_2_psi (X_guess[8],temp)
+X_guess[12] = Boltzman_factor_2_psi (X_guess[12],temp)
+[X,C] = flmPB.PB_and_fourlayermodel(T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, d0,df, idx_fix_species, zel=1, tolerance_NR = 1e-8, max_iterations = 20,scalingRC = True, tol_PB=1e-4)
+#(T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, x, idx_fix_species = None, zel=1, tolerance = 1e-6, max_iterations = 100,scalingRC = True)
+#[X,C] = flmPB_v2.PB_and_fourlayermodel(T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, x, idx_fix_species = None, zel=1, tolerance = 1e-6, max_iterations = 100,scalingRC = True)
+
