@@ -16,7 +16,7 @@ from matplotlib import pyplot as plt
 '''
 
 
-def PB_and_fourlayermodel (T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, d0,df, idx_fix_species = None, zel=1, tolerance_NR = 1e-6, max_iterations = 100,scalingRC = True, tol_PB=1-6):
+def PB_and_fourlayermodel (T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, d0,df, idx_fix_species = None, zel=1, tolerance_NR = 1e-6, max_iterations = 100,scalingRC = True, tol_PB=1e-6):
     counter_iterations = 0
     abs_err = tolerance_NR + 1
     if idx_fix_species != None:
@@ -136,9 +136,9 @@ def Update_T_FLM(T, sS1, sS2, e, temp, aS1, aS2, Z,CapacitancesS1, CapacitancesS
         y_0 = bvp_solver[0].copy()
         x = np.linspace(d0,df,y_0.shape[1])
         #deltaing this
-        y1= bvp_solver[0].copy()
-        y2= bvp_solver[0].copy()
-        y3= bvp_solver[0].copy()
+        #y1= bvp_solver[0].copy()
+        #y2= bvp_solver[0].copy()
+        #y3= bvp_solver[0].copy()
     else :
         y_0 = bvp_solver.y
         x = bvp_solver.x
@@ -180,7 +180,7 @@ def Update_T_FLM(T, sS1, sS2, e, temp, aS1, aS2, Z,CapacitancesS1, CapacitancesS
     #si3=-result3.y[1][0]*ew
     
     
-    #plt.plot(result.x, result.y[1])
+    plt.plot(result.x, result.y[0])
     #
     sigma_S1_d=-result.y[1][0]*ew
     sigma_S2_d=result.y[1][-1]*ew
@@ -394,6 +394,7 @@ def fun_PB(x, y, args):
 def bc_PB(ya, yb, args):
     y0 = args[4]
     return np.array([ya[0]-y0[0,0] , yb[0]-y0[0,-1]])
+
 
     
 def diagonal_row(J):

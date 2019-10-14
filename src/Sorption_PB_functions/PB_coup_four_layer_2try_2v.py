@@ -16,7 +16,7 @@ import scipy as sp
 from bvp import solve_bvp
 from scipy import linalg
 #from four_layer_model_2try_withFixSpeciesOption_Scaling import four_layer_model_2try_withFixSpeciesOption_Scaling as flm
-
+import matplotlib.pyplot as plt
 '''
     In this first try we will assume that the vector of unknowns is composed in the following order:
 '''
@@ -51,7 +51,7 @@ def PB_and_fourlayermodel (T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_
         Max_f = np.amax([max_1, max_2])
         Del_mul = 1/Max_f
         X_guess=X_guess + Del_mul*delta_X
-        
+        #print(X_guess)
         log_C = log_k + np.matmul(A,np.log10(X_guess))
         # transf
         C = 10**(log_C)
@@ -59,7 +59,7 @@ def PB_and_fourlayermodel (T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_
         
        # Vector_error 
         d = u-T
-        print(d)
+        #print(d)
         if idx_fix_species != None:
             d[idx_fix_species] =0
         abs_err = max(abs(d))
@@ -142,6 +142,11 @@ def Update_T_FLM(T, sS1, sS2, e, temp, aS1, aS2, Z,CapacitancesS1, CapacitancesS
     args=[Q,C,A,kbt,y0]
     result = solve_bvp(fun_PB, bc_PB, x, y0, tol = 1e-4, args = args)
     #
+    #plt.figure(1)
+    #plt.plot(result.x, result.y[0])
+    #plt.figure(2)
+    #plt.plot(result.x, result.y[1])
+    #assert 1==-1
     sigma_S1_d=-result.y[1][0]*ew
     sigma_S2_d=result.y[1][-1]*ew
     #
