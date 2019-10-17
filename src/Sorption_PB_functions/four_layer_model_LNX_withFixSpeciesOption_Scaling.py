@@ -291,7 +291,7 @@ def four_layer_one_surface_speciation ( T, lnX_guess, A, Z, ln_k, idx_Aq,pos_eb_
         
         counter_iterations += 1
     if counter_iterations >= max_iterations or np.isnan(abs_err):
-            raise ValueError('Max number of iterations surpassed.') 
+            raise ValueError('Max number of iterations exceed.') 
     # things to do if goes well
     X = np.exp(ln_X)
     ln_C = mass_action_law (ln_X, ln_k, A)
