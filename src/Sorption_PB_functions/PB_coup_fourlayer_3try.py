@@ -24,7 +24,7 @@ def mass_action_law (log_K, X, A):
         
         Note: the returned value is C. Ci = Xi should match the values. Namely if Ci is species Ca+2, and Ca+2 is a primary species, which states that Ca+2 is in X. Xi that belongs to Ca+2, should match  
     '''
-    log_C = log_K+np.matmul(A,np.log(X))
+    log_C = log_K+np.matmul(A,np.log10(X))
     C = 10**(log_C)
     return C
 
@@ -122,12 +122,13 @@ def fun_PB(x,y,args):
     Z_aq = args[1]
     ni =  args[2] 
     e_kbt =  args[3]
+    summation = np.zeros((x.size))
     for i in range(len(ni)):
-        summation = Z_aq[i]*ni[i]*np.exp(-Z_aq[i]*e_kbt*y[0])
+        summation += Z_aq[i]*ni[i]*np.exp(-Z_aq[i]*e_kbt*y[0])
     pb_righthandside = me_ee0*summation
-    return num.vstack((y[1] ,  pb_righthandside))    
+    return np.vstack((y[1] ,  pb_righthandside))    
 
-def integrate_PB_solution(psi_PB, epsilon_0, epsilon, C_aq, Z_aq):
+def integrate_PB_solution(psi_PB, epsilon_0, epsilon, C_aq, Z_aq, temp):
     '''
     psi_PB is supose to be an object of bvp solver of scipy.
     '''
@@ -141,9 +142,10 @@ def integrate_PB_solution(psi_PB, epsilon_0, epsilon, C_aq, Z_aq):
     n_mesh = len(psi_PB.x)
     y = np.zeros(n_mesh)
     # create vector y before numerical integration
-    for i in range(len(n_mesh)):
+    for i in range(n_mesh):
+        summation =0
         for j in range(len(ni)):
-            summation = Z_aq[j]*ni[j]*np.exp(-Z_aq[j]*e_kbt*psi_vec[0,i])
+            summation += Z_aq[j]*ni[j]*np.exp(-Z_aq[j]*e_kbt*psi_vec[0,i])
         y[i] = me_ee0*summation
     sigma_PB = np.trapz(y,psi_PB.x)
     sigma_PB_S1 = (epsilon_0*epsilon)*psi_vec[1,0]
@@ -154,7 +156,8 @@ def totals_sigmas(T, pos_ele_S1, pos_ele_S2, sigma_FLM_S1, sigma_FLM_S2,F,s1,s2,
     for i in range(len(pos_ele_S1)-1):
         T[pos_ele_S1[i]] = charge_2_mol (sigma_FLM_S1[i], s1, a1, F)
         T[pos_ele_S2[i]] = charge_2_mol (sigma_FLM_S2[i], s2, a2, F)
-        
+    return T
+
 def calculate_psi_PB(epsilon_0, epsilon, C_aq, Z_aq_vec, psi_pb_0, distance, temp):    
     kb = 1.38064852e-23                                 # J/K other units --> kb=8,6173303e-5  eV/K
     Na = 6.022140857e23                                 # 1/mol
@@ -162,7 +165,7 @@ def calculate_psi_PB(epsilon_0, epsilon, C_aq, Z_aq_vec, psi_pb_0, distance, tem
     ni = Na*1000*C_aq
     e_kbt = elec_charge/(kb*temp)
     me_ee0=-elec_charge/(epsilon_0*epsilon)
-    args=[me_ee0, Z_aq, ni, e_kbt, psi_pb_0]
+    args=[me_ee0, Z_aq_vec, ni, e_kbt, psi_pb_0]
     psi_PB= solve_bvp(fun_PB, bc_PB, distance, psi_pb_0, tol = 1e-4, args = args)
     return psi_PB
     
@@ -172,7 +175,7 @@ def modification_initialvalue_PBsolver(X_psi_S1, X_psi_S2, sigma_FLM_S1, sigma_F
     # The following part I am not sure, but anyway we thing it is not really affecting or its effect is supposed to be negligible.
     #Gauss part
     psi_pb_0[1,0] = sigma_FLM_S1/(epsilon_0*epsilon)
-    psi_pb_0[0,-1] = -sigma_FLM_S2/(epsilon_0*epsilon)
+    psi_pb_0[1,-1] = -sigma_FLM_S2/(epsilon_0*epsilon)
     return psi_pb_0
     
 def calculate_surface_charge_FLM(X_psi, C_vec):
@@ -191,12 +194,19 @@ def T_electrostatic_update (X, T, pos_ele_S1, pos_ele_S2, C_vec_S1, C_vec_S2, a1
     sigma_FLM_S2 = calculate_surface_charge_FLM(X_psi_S2, C_vec_S2)
     psi_pb_0 = modification_initialvalue_PBsolver(X_psi_S1[-1], X_psi_S2[-1], sigma_FLM_S1[-1], sigma_FLM_S2[-1], epsilon_0, epsilon, psi_pb_0)
     psi_PB = calculate_psi_PB(epsilon_0, epsilon, C_aq, Z_aq_vec,psi_pb_0, distance, temp)
-    [sigma_PB, sigma_PB_S1, sigma_PB_S2] = integrate_PB_solution(psi_PB, epsilon_0, epsilon, C_aq, Z_aq_vec)
+    if True:
+        plt.figure(1)
+        plt.plot(psi_PB.x, psi_PB.y[0])
+        plt.figure(2)
+        plt.plot(psi_PB.x, psi_PB.y[1])
+        #assert 3==5
+    
+    [sigma_PB, sigma_PB_S1, sigma_PB_S2] = integrate_PB_solution(psi_PB, epsilon_0, epsilon, C_aq, Z_aq_vec, temp)
     # Assigning some Ts
     T = totals_sigmas(T, pos_ele_S1, pos_ele_S2, sigma_FLM_S1, sigma_FLM_S2,F,s1,s2,a1,a2)
     # The T for sigma must be different, since the part of psi_d related to u is equal to 0, here we should have already 0.
     T[pos_ele_S1[-1]]= sigma_FLM_S1[-1] - sigma_PB_S1
-    T[pos_ele_S2[-1]]= sigma_FLM_S2[-1] - sigma_PB_S2
+    T[pos_ele_S2[-1]]= sigma_FLM_S2[-1] + sigma_PB_S2      # 'This step might be wrong' #This step might be wrong ''
     return T
 
 def calculate_jacobian_AC_part(log_K, X, A):
@@ -240,11 +250,11 @@ def calculate_jacobian_FLM_part(J, X, pos_ele_S1, pos_ele_S2, C_vec_S1, C_vec_S2
     return J
 
 def calculate_term_PB_jac (J, psi_pb_0, psi_pb_1, psi_pb_2, delta_psi, epsilon_0, epsilon, pos_d_S1, pos_d_S2):
-    J[pos_d_S1, pos_d_S1] = J[pos_d_S1, pos_d_S1] - (epsilon_0*epsilon)*((psi_pb_1[1,0]-psi_pb_0[1,0])/delta_psi)
-    J[pos_d_S2, pos_d_S2] = J[pos_d_S2, pos_d_S2] - (epsilon_0*epsilon)*((psi_pb_2[1,0]-psi_pb_0[1,0])/delta_psi)
+    J[pos_d_S1, pos_d_S1] = J[pos_d_S1, pos_d_S1] - (epsilon_0*epsilon)*((psi_pb_1.y[1,0]-psi_pb_0.y[1,0])/delta_psi)
+    J[pos_d_S2, pos_d_S2] = J[pos_d_S2, pos_d_S2] - (epsilon_0*epsilon)*((psi_pb_2.y[1,0]-psi_pb_0.y[1,0])/delta_psi)
     return J
 
-def calculate_jacobian_PB_part(J, psi_pb_0, distance, X, C_aq, pos_ele_S1, pos_ele_S2,C_vec_S1, C_vec_S2, temp, epsilon_0, epsilon, Z_aq_vec):
+def calculate_jacobian_PB_part(J, psi_pb_0, distance, X, C_aq, pos_ele_S1, pos_ele_S2,C_vec_S1, C_vec_S2, temp, epsilon_0, epsilon, Z_aq_vec, R, F):
     delta_psi = 0.001
     X_psi_S1 = X[pos_ele_S1]
     X_psi_S2 = X[pos_ele_S2]
@@ -261,7 +271,7 @@ def calculate_jacobian_PB_part(J, psi_pb_0, distance, X, C_aq, pos_ele_S1, pos_e
     psi_pb_2 =calculate_psi_PB(epsilon_0, epsilon, C_aq, Z_aq_vec, psi_pb_02, distance, temp)
     
     J = calculate_term_PB_jac (J,psi_pb_0, psi_pb_1, psi_pb_2, delta_psi, epsilon_0, epsilon, pos_ele_S1[-1], pos_ele_S2[-1])
-
+    return J
 
 def residual_function_calculation(log_K, X, A, T, pos_ele_S1, pos_ele_S2, C_vec_S1, C_vec_S2, a1,a2,s1,s2, temp, F, R, epsilon_0, epsilon, idx_aq, Z_aq_vec,psi_pb_0, distance, idx_fix_species):
     # Calculate species
@@ -281,7 +291,7 @@ def calculate_jacobian_function(log_K, X, A, pos_ele_S1, pos_ele_S2, C_vec_S1, C
     [J,C] = calculate_jacobian_AC_part(log_K, X, A)
     J = calculate_jacobian_FLM_part(J, X, pos_ele_S1, pos_ele_S2, C_vec_S1, C_vec_S2, a1,a2,s1,s2, temp, F,R)
     C_aq = C[idx_aq]
-    J = calculate_jacobian_PB_part(J, psi_pb_0, distance, X, C_aq, pos_ele_S1, pos_ele_S2,C_vec_S1, C_vec_S2, temp, epsilon_0, epsilon, Z_aq_vec)
+    J = calculate_jacobian_PB_part(J, psi_pb_0, distance, X, C_aq, pos_ele_S1, pos_ele_S2,C_vec_S1, C_vec_S2, temp, epsilon_0, epsilon, Z_aq_vec, R, F)
     if idx_fix_species != None:
         for d in idx_fix_species:
             v=np.zeros(X.size)
@@ -341,8 +351,8 @@ def PB_and_fourlayermodel (distance, psi_pb_0, log_K, X, A, T,pos_ele_S1, pos_el
         if idx_fix_species != None:
             Y[idx_fix_species] =0
         abs_err = max(abs(Y))
-         counter_iterations += 1
-         
+        counter_iterations += 1
+        print(Y) 
     if counter_iterations >= max_iterations or np.isnan(abs_err):
             raise ValueError('Max number of iterations exceed.')      
     C = mass_action_law (log_K, X, A)

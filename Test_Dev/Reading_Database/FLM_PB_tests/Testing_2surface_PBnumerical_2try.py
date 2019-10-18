@@ -5,13 +5,12 @@ Created on Tue Aug 27 11:07:18 2019
 @author: DaniJ
 """
 
-import PB_coup_four_layer_2try_2v as flmPB_v2
-import PB_coup_four_layer_2try as flmPB
+import PB_coup_fourlayer_3try as flmPB
 import four_layer_model_2try_withFixSpeciesOption_Scaling_2surface as flm1
 import numpy as np
 import scipy as sp
-
 from matplotlib import pyplot as plt
+
 def Boltzman_factor_2_psi (x,temp):
     '''
         Transforms the equation from Xb = exp(-psi*F/RT) to psi = -ln(Xb)RT/F
@@ -69,20 +68,14 @@ CapacitancesS2=[1.05, 3.36, 0.27]
 d0=0        # initial position
 df=400e-9   # final position
 h = np.linspace(d0,df,100)
-
+psi_pb_0 = np.zeros((2, h.size))
 T=np.array([1e-3, 1e-2, 1.1e-2, 9.9635e-6, 9.9635e-6, 8.7e-7, 0.9, 0.9, 0.9,8.7e-7, 0.9, 0.9, 0.9]) 
 #(T, X_guess, distance, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, x, idx_fix_species = None, zel=1, tolerance = 1e-6, max_iterations = 100,scalingRC = True):
 [X_guess,C1] = flm1.four_layer_two_surface_speciation ( T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, idx_fix_species, zel=1, tolerance = 1e-12, max_iterations = 100,scalingRC = True)
 X_guess[8] = Boltzman_factor_2_psi (X_guess[8],temp)
 X_guess[12] = Boltzman_factor_2_psi (X_guess[12],temp)
-#psi_S2_v = [Boltzman_factor_2_psi(X[pos_psi_S2_vec[0]], temp), Boltzman_factor_2_psi(X[pos_psi_S2_vec[1]], temp), Boltzman_factor_2_psi(X[pos_psi_S2_vec[2]], temp), X[pos_psi_S2_vec[3]]] 
-   
-#sigma_S2_0 = CapacitancesS2[0]*(psi_S2_v[0]-psi_S2_v[1])
-#sigma_S2_alpha = -sigma_S2_0 + CapacitancesS2[1]*(psi_S2_v[1]-psi_S2_v[2])
-#sigma_S2_beta = -sigma_S2_0-sigma_S2_alpha+CapacitancesS2[2]*(psi_S2_v[2]-psi_S2_v[3])
-#sigma_S2_gamma = -sigma_S2_0 - sigma_S2_alpha - sigma_S2_beta
 
-[X,C] = flmPB.PB_and_fourlayermodel(T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, d0,df, idx_fix_species, zel=1, tolerance_NR = 1e-8, max_iterations = 10,scalingRC = True, tol_PB=1e-8)
-#(T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, x, idx_fix_species = None, zel=1, tolerance = 1e-6, max_iterations = 100,scalingRC = True)
-#[X,C] = flmPB_v2.PB_and_fourlayermodel(T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, h, idx_fix_species = None, zel=1, tolerance = 1e-6, max_iterations = 100,scalingRC = True)
 
+#def PB_and_fourlayermodel (distance, psi_pb_0, log_K, X, A, T,pos_ele_S1, pos_ele_S2, C_vec_S1, C_vec_S2, a1,a2,s1,s2, idx_aq, Z_aq_vec, temp, epsilon,tolerance = 1e-8, max_iterations=80, idx_fix_species = None,scalingRC = True)
+#[X,C] = flmPB.PB_and_fourlayermodel(T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_psi_S2_vec, temp, sS1, aS1, sS2, aS2, e, CapacitancesS1, CapacitancesS2, d0,df, idx_fix_species, zel=1, tolerance_NR = 1e-8, max_iterations = 10,scalingRC = True, tol_PB=1e-4)
+[X,C] = flmPB.PB_and_fourlayermodel(h, psi_pb_0, log_k, X_guess, A, T, pos_psi_S1_vec, pos_psi_S2_vec, CapacitancesS1, CapacitancesS2, aS1,aS2,sS1,sS2, idx_Aq, Z, temp, e, idx_fix_species=idx_fix_species)

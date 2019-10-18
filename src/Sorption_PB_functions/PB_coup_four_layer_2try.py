@@ -179,9 +179,10 @@ def Update_T_FLM(T, sS1, sS2, e, temp, aS1, aS2, Z,CapacitancesS1, CapacitancesS
     #si2=-result2.y[1][0]*ew
     #si3=-result3.y[1][0]*ew
     
-    
-    plt.plot(result.x, result.y[0])
+    #plt.figure()
+    #plt.plot(result.x, result.y[0])
     #
+    #assert 5==3
     sigma_S1_d=-result.y[1][0]*ew
     sigma_S2_d=result.y[1][-1]*ew
     #sigma_S1_d=-result.y[1][0]*ew + CapacitancesS1[2]*(psi_S1_v[2]-psi_S1_v[3])
