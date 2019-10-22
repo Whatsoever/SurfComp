@@ -49,7 +49,12 @@ def PB_and_fourlayermodel (T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_
         Del_mul = 1/Max_f
         X_guess=X_guess + Del_mul*delta_X
         #print(X_guess)
-        log_C = log_k + np.matmul(A,np.log10(X_guess))
+        Xmod=X_guess.copy()
+        for i in range(len(X_guess)):
+            if X_guess[i]<=0:
+                Xmod[i]=1
+        log_C = log_k + np.matmul(A,np.log10(Xmod))
+        
         # transf
         C = 10**(log_C)
         u = np.matmul(A.transpose(),C)
@@ -66,7 +71,11 @@ def PB_and_fourlayermodel (T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_
             raise ValueError('Max number of iterations surpassed.') 
             #return X_guess, C
     # Speciation - mass action law
-    log_C = log_k + np.matmul(A,np.log10(X_guess))
+    Xmod=X_guess.copy()
+    for i in range(len(X_guess)):
+        if X_guess[i]<=0:
+            Xmod[i]=1
+    log_C = log_k + np.matmul(A,np.log10(Xmod))
     # transf
     C = 10**(log_C)
     return X_guess, C
@@ -79,7 +88,11 @@ def func_NR_FLM (X, A, log_k, temp, idx_Aq,  sS1, aS1, sS2, aS2, e, Capacitances
         FLM = four layer model
     """
     # Speciation - mass action law
-    log_C = log_k + np.matmul(A,np.log10(X))
+    Xmod=X.copy()
+    for i in range(len(X)):
+        if X[i]<=0:
+            Xmod[i]=1
+    log_C = log_k + np.matmul(A,np.log10(Xmod))
     # transf
     C = 10**(log_C)
     # Update T - "Electrostatic parameters"
@@ -179,8 +192,8 @@ def Update_T_FLM(T, sS1, sS2, e, temp, aS1, aS2, Z,CapacitancesS1, CapacitancesS
     #si2=-result2.y[1][0]*ew
     #si3=-result3.y[1][0]*ew
     
-    #plt.figure()
-    #plt.plot(result.x, result.y[0])
+    plt.figure(3)
+    plt.plot(result.x, result.y[0])
     #
     #assert 5==3
     sigma_S1_d=-result.y[1][0]*ew
@@ -233,7 +246,11 @@ def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, sS1, aS1, sS2, aS2, e, Capacitan
     elec_charge = 1.60217662e-19 #electron charge in C
     # Speciation - mass action law
     #log_C = log_k + A*np.log10(X)
-    log_C = log_k + np.matmul(A,np.log10(X))
+    Xmod=X.copy()
+    for i in range(len(X)):
+        if X[i]<=0:
+            Xmod[i]=1
+    log_C = log_k + np.matmul(A,np.log10(Xmod))
     # transf
     C = 10**(log_C)
     C_aq = C[idx_Aq]

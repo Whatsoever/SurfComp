@@ -27,6 +27,24 @@ def mass_action_law (log_K, X, A):
     log_C = log_K+np.matmul(A,np.log10(X))
     C = 10**(log_C)
     return C
+def modified_mass_action_law (log_K, X, A):
+    '''
+        Based on Westall (1980) paper    
+    
+        log_K   vector of log Ki
+        X       vector of primary species 
+        A       matrix of stoichiometric coefficients
+        
+        Note: the returned value is C. Ci = Xi should match the values. Namely if Ci is species Ca+2, and Ca+2 is a primary species, which states that Ca+2 is in X. Xi that belongs to Ca+2, should match  
+        Note2: If a value is negative, it will assume to be 1. Hence, log10(1)=0 or 0. In principle the only values that can be negative are psi_d
+    '''
+    Xmod=X.copy()
+    for i in range(len(X)):
+        if X[i]<=0:
+            Xmod[i]=1
+    log_C = log_K+np.matmul(A,np.log10(Xmod))
+    C = 10**(log_C)
+    return C
 
 def u_componentvector(A,C):
     '''
@@ -210,7 +228,7 @@ def T_electrostatic_update (X, T, pos_ele_S1, pos_ele_S2, C_vec_S1, C_vec_S2, a1
     return T
 
 def calculate_jacobian_AC_part(log_K, X, A):
-    C = mass_action_law (log_K, X, A)
+    C = modified_mass_action_law (log_K, X, A)
     n = X.size
     Z = np.zeros((n,n))
     for i in range(0, n):
@@ -255,7 +273,7 @@ def calculate_term_PB_jac (J, psi_pb_0, psi_pb_1, psi_pb_2, delta_psi, epsilon_0
     return J
 
 def calculate_jacobian_PB_part(J, psi_pb_0, distance, X, C_aq, pos_ele_S1, pos_ele_S2,C_vec_S1, C_vec_S2, temp, epsilon_0, epsilon, Z_aq_vec, R, F):
-    delta_psi = 0.001
+    delta_psi = 0.000001
     X_psi_S1 = X[pos_ele_S1]
     X_psi_S2 = X[pos_ele_S2]
     X_psi_S1[:-1] = boltzman_2_psi(X_psi_S1[:-1], R, temp, F)
@@ -275,7 +293,7 @@ def calculate_jacobian_PB_part(J, psi_pb_0, distance, X, C_aq, pos_ele_S1, pos_e
 
 def residual_function_calculation(log_K, X, A, T, pos_ele_S1, pos_ele_S2, C_vec_S1, C_vec_S2, a1,a2,s1,s2, temp, F, R, epsilon_0, epsilon, idx_aq, Z_aq_vec,psi_pb_0, distance, idx_fix_species):
     # Calculate species
-    C = mass_action_law (log_K, X, A)
+    C = modified_mass_action_law (log_K, X, A)
     C_aq = C[idx_aq]
     # Components
     u = u_componentvector(A,C)
@@ -325,7 +343,7 @@ def PB_and_fourlayermodel (distance, psi_pb_0, log_K, X, A, T,pos_ele_S1, pos_el
     abs_err = tolerance + 1
     if idx_fix_species != None:
         X [idx_fix_species] = T [idx_fix_species]
-    while abs_err>tolerance and counter_iterations < max_iterations:
+    while abs_err-tolerance>np.finfo(float).eps and counter_iterations < max_iterations:
         # First step is to calculate the Residual function
         [Y,T] = residual_function_calculation(log_K, X, A, T, pos_ele_S1, pos_ele_S2, C_vec_S1, C_vec_S2, a1,a2,s1,s2, temp, F,R,epsilon_0, epsilon, idx_aq, Z_aq_vec, psi_pb_0, distance, idx_fix_species)
         # Second step is to calculate the Jacaobian
@@ -355,5 +373,5 @@ def PB_and_fourlayermodel (distance, psi_pb_0, log_K, X, A, T,pos_ele_S1, pos_el
         print(Y) 
     if counter_iterations >= max_iterations or np.isnan(abs_err):
             raise ValueError('Max number of iterations exceed.')      
-    C = mass_action_law (log_K, X, A)
+    C = modified_mass_action_law (log_K, X, A)
     return X, C

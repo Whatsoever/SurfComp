@@ -52,14 +52,18 @@ def PB_and_fourlayermodel (T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_
         Del_mul = 1/Max_f
         X_guess=X_guess + Del_mul*delta_X
         #print(X_guess)
-        log_C = log_k + np.matmul(A,np.log10(X_guess))
+        Xmod=X_guess.copy()
+        for i in range(len(X_guess)):
+            if X_guess[i]<=0:
+                Xmod[i]=1
+        log_C = log_k + np.matmul(A,np.log10(Xmod))
         # transf
         C = 10**(log_C)
         u = np.matmul(A.transpose(),C)
         
        # Vector_error 
         d = u-T
-        #print(d)
+        print(d)
         if idx_fix_species != None:
             d[idx_fix_species] =0
         abs_err = max(abs(d))
@@ -68,7 +72,11 @@ def PB_and_fourlayermodel (T, X_guess, A, Z, log_k, idx_Aq, pos_psi_S1_vec, pos_
     if counter_iterations >= max_iterations:
             raise ValueError('Max number of iterations surpassed.') 
     # Speciation - mass action law
-    log_C = log_k + np.matmul(A,np.log10(X_guess))
+    Xmod=X_guess.copy()
+    for i in range(len(X_guess)):
+        if X_guess[i]<=0:
+            Xmod[i]=1
+    log_C = log_k + np.matmul(A,np.log10(Xmod))
     # transf
     C = 10**(log_C)
     return X_guess, C
@@ -81,7 +89,11 @@ def func_NR_FLM (X, A, log_k, temp, idx_Aq,  sS1, aS1, sS2, aS2, e, Capacitances
         FLM = four layer model
     """
     # Speciation - mass action law
-    log_C = log_k + np.matmul(A,np.log10(X))
+    Xmod=X.copy()
+    for i in range(len(X)):
+        if X[i]<=0:
+            Xmod[i]=1
+    log_C = log_k + np.matmul(A,np.log10(Xmod))
     # transf
     C = 10**(log_C)
     # Update T - "Electrostatic parameters"
@@ -192,7 +204,11 @@ def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, sS1, aS1, sS2, aS2, e, Capacitan
     elec_charge = 1.60217662e-19 #electron charge in C
     # Speciation - mass action law
     #log_C = log_k + A*np.log10(X)
-    log_C = log_k + np.matmul(A,np.log10(X))
+    Xmod=X.copy()
+    for i in range(len(X)):
+        if X[i]<=0:
+            Xmod[i]=1
+    log_C = log_k + np.matmul(A,np.log10(Xmod))
     # transf
     C = 10**(log_C)
     C_aq = C[idx_Aq]
@@ -225,7 +241,8 @@ def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, sS1, aS1, sS2, aS2, e, Capacitan
     # Assigning in Jacobian (plane beta)
     Z[pos_psi_S1_vec[2],pos_psi_S1_vec[1]] = Z[pos_psi_S1_vec[2],pos_psi_S1_vec[1]] - C2_sa_F2_RTS1/X[pos_psi_S1_vec[1]]
     Z[pos_psi_S1_vec[2], pos_psi_S1_vec[2]] = Z[pos_psi_S1_vec[2],pos_psi_S1_vec[2]] + C3C2_sa_F2_RTS1/X[pos_psi_S1_vec[2]]
-    Z[pos_psi_S1_vec[2], pos_psi_S1_vec[3]] = Z[pos_psi_S1_vec[2],pos_psi_S1_vec[3]] - C3_sa_F2_RTS1/X[pos_psi_S1_vec[3]]
+    Z[pos_psi_S1_vec[2], pos_psi_S1_vec[3]] = Z[pos_psi_S1_vec[2],pos_psi_S1_vec[3]] - CapacitancesS1[2]*((sS1*aS1)/F)
+    #Z[pos_psi_S1_vec[2], pos_psi_S1_vec[3]] = Z[pos_psi_S1_vec[2],pos_psi_S1_vec[3]] - C3_sa_F2_RTS1/X[pos_psi_S1_vec[3]]
     #### plane gamma [diffusive plane]
     #Z[pos_psi_S1_vec[3],pos_psi_S1_vec[2]] = Z[pos_psi_S1_vec[3],pos_psi_S1_vec[2]] - C3_sa_F2_RTS1/X[pos_psi_S1_vec[2]]  
     # d_d plane
@@ -254,7 +271,8 @@ def Jacobian_NR_FLM (X, A, log_k, temp, idx_Aq, sS1, aS1, sS2, aS2, e, Capacitan
     # Assigning in Jacobian (plane beta)
     Z[pos_psi_S2_vec[2],pos_psi_S2_vec[1]] = Z[pos_psi_S2_vec[2],pos_psi_S2_vec[1]] - C2_sa_F2_RTS2/X[pos_psi_S2_vec[1]]
     Z[pos_psi_S2_vec[2], pos_psi_S2_vec[2]] = Z[pos_psi_S2_vec[2],pos_psi_S2_vec[2]] + C3C2_sa_F2_RTS2/X[pos_psi_S2_vec[2]]
-    Z[pos_psi_S2_vec[2], pos_psi_S2_vec[3]] = Z[pos_psi_S2_vec[2],pos_psi_S2_vec[3]] - C3_sa_F2_RTS2/X[pos_psi_S2_vec[3]]
+    Z[pos_psi_S2_vec[2], pos_psi_S2_vec[3]] = Z[pos_psi_S2_vec[2],pos_psi_S2_vec[3]] - CapacitancesS2[2]*((sS2*aS2)/F)
+    #Z[pos_psi_S2_vec[2], pos_psi_S2_vec[3]] = Z[pos_psi_S2_vec[2],pos_psi_S2_vec[3]] - C3_sa_F2_RTS2/X[pos_psi_S2_vec[3]]
     #### plane gamma [diffusive plane]
     #Z[pos_psi_S2_vec[3],pos_psi_S2_vec[2]] = Z[pos_psi_S2_vec[3],pos_psi_S2_vec[2]] - C3_sa_F2_RTS2/X[pos_psi_S2_vec[2]]  
     # d_d plane
